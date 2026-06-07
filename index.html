@@ -451,7 +451,7 @@
       <h3>🏖️ Folga garantida de fim de semana</h3>
       <p>O <b>colaborador</b> pode reservar um <b>sábado ou domingo</b> de folga para um compromisso, mesmo antes da escala existir:</p>
       <ol>
-        <li>No <b>modo colaborador</b>, em <b>Minha Escala</b>, clique em <b>🏖️ Pedir folga (fim de semana)</b>, escolha a data (Sáb/Dom) e o motivo. É exigido <b>no mínimo 6 dias</b> de antecedência.</li>
+        <li>No <b>modo colaborador</b>, em <b>Minha Escala</b>, clique em <b>🏖️ Pedir folga (fim de semana)</b>, escolha a data (Sáb/Dom) e o motivo. É exigido <b>no mínimo 60 dias</b> de antecedência.</li>
         <li>O pedido vai para a <b>caixa da gestora</b> (📨 Trocas → seção "Pedidos de folga") — ela <b>Aprova</b> ou Recusa.</li>
         <li>Ao <b>gerar novas escalas</b>, o pedido aprovado já é respeitado: a pessoa não é escalada naquele dia e é <b>realocada automaticamente</b> (mantendo as 24h). Se a semana já existir, o ajuste é feito na hora da aprovação.</li>
       </ol>
@@ -1071,7 +1071,7 @@ function renderMinha(){
   if(folgasAprov) painel += '<div class="colab-dica">✅ '+folgasAprov+' folga(s) de fim de semana já aprovada(s).</div>';
   painel += '<div class="acoes">';
   painel += '<button class="btn primary" onclick="setTab(\'troca\')">🔄 Solicitar / ver trocas</button>';
-  painel += '<button class="btn" onclick="abrirFolga()">🏖️ Pedir folga (fim de semana)</button>';
+  painel += '<button class="btn" onclick="abrirFolga()" title="Prazo mínimo de '+antecMin()+' dias de antecedência">🏖️ Pedir folga <small style="font-size:10px;opacity:.8;font-weight:400">(mín. '+antecMin()+' dias antes)</small></button>';
   painel += '<button class="btn" onclick="setTab(\'escala\')">📅 Ver escala geral</button>';
   painel += '<button class="btn" onclick="window.print()">🖨️ Imprimir minha escala</button>';
   painel += '</div></div>';
@@ -2013,7 +2013,11 @@ function antecMin(){ return (state.config&&state.config.antecedenciaDias)||60; }
 function formatarDataBR(iso){ const p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 function abrirFolga(){
   if(!ehColab()){ alert('Entre como colaborador (👤 Entrar) para pedir folga.'); return; }
-  document.getElementById('folMinTxt').textContent=antecMin();
+  const min=antecMin();
+  document.getElementById('folMinTxt').textContent=min;
+  // Bloqueia o calendário: só permite datas com pelo menos X dias de antecedência
+  const minDate=new Date(); minDate.setDate(minDate.getDate()+min);
+  document.getElementById('folData').min=minDate.toISOString().split('T')[0];
   document.getElementById('folData').value=''; document.getElementById('folMotivo').value='';
   atualizaFolInfo(); renderFolLista();
   folModal.style.display='flex';
