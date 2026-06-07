@@ -301,7 +301,7 @@
   <div class="spacer"></div>
   <span id="syncStatus" style="font-size:11px;color:rgba(255,255,255,.75);white-space:nowrap"></span>
   <span id="userChip" class="user-chip"></span>
-  <button class="btn gestor-only" id="btnInbox" title="Caixa de solicitações pendentes de autorização">📨 Trocas/Exceções <span id="inboxBadge" class="badge-n" style="display:none">0</span></button>
+  <button class="btn somente-gestor" id="btnInbox" title="Caixa de solicitações pendentes de autorização">📨 Trocas/Exceções <span id="inboxBadge" class="badge-n" style="display:none">0</span></button>
   <button class="btn somente-gestor" id="btnEdit">🔓 Modo Gestor</button>
   <button class="btn sair" id="btnLogin" style="display:none">🚪 Sair</button>
 </header>
@@ -1984,8 +1984,8 @@ function renderTrocas(){
   html+='<div class="troca-sec"><h3>📤 Minhas solicitações enviadas</h3>';
   html+= env.length? env.map(t=>cardTroca(t,null,false)).join('') : '<div class="troca-empty">Você ainda não solicitou trocas.</div>';
   html+='</div>';
-  // Caixa do gestor
-  if(editing){
+  // Caixa do gestor — visível sempre que logado como gestor (independe do modo edição)
+  if(ehGestor()){
     const pend=state.trocas.filter(t=>t.status==='aguardando_gestor');
     html+='<div class="troca-sec"><h3>🛡️ Trocas — aguardando autorização</h3>';
     html+= pend.length? pend.map(t=>cardTroca(t,'<button class="btn ok mini" onclick="autorizarTroca(\''+t.id+'\')">✓ Autorizar</button><button class="btn no mini" onclick="recusarGestor(\''+t.id+'\')">✗ Recusar</button>', !t.lidaGestor)).join('') : '<div class="troca-empty">Nenhuma troca aguardando autorização.</div>';
@@ -2004,8 +2004,8 @@ function renderTrocas(){
     html+='</div>';
   }
   document.getElementById('trocaWrap').innerHTML=html;
-  // marca como lidas as pendências do gestor ao visualizar
-  if(editing){
+  // marca como lidas as pendências do gestor ao visualizar a aba
+  if(ehGestor()){
     let mudou=false;
     state.trocas.forEach(t=>{ if(t.status==='aguardando_gestor' && !t.lidaGestor){ t.lidaGestor=true; mudou=true; } });
     (state.folgas||[]).forEach(f=>{ if(f.status==='pendente' && !f.lidaGestor){ f.lidaGestor=true; mudou=true; } });
