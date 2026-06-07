@@ -480,6 +480,28 @@
 <!-- botão flutuante em modo paisagem mobile -->
 <button id="landscapeBack" title="Girar para retrato">↩ Girar</button>
 
+<!-- Modal: criar senha após login por link -->
+<div id="tokenSenhaModal" class="modal-bg" style="display:none">
+  <div class="modal" style="width:min(400px,94vw)">
+    <div style="font-size:28px;text-align:center;margin-bottom:10px">🔑</div>
+    <h3 style="text-align:center;margin:0 0 8px">Crie sua senha de acesso</h3>
+    <p style="font-size:13px;color:#5c6b75;text-align:center;margin:0 0 18px">Para entrar direto na próxima vez sem precisar do link, crie uma senha agora.</p>
+    <div class="fld"><label>Crie sua senha <span style="font-weight:400;color:#9aa7b0">(mínimo 4 caracteres)</span></label>
+      <input type="password" id="tknSenha1" placeholder="••••••" autocomplete="new-password"
+        style="font-size:18px;letter-spacing:4px;text-align:center;font-family:monospace">
+    </div>
+    <div class="fld"><label>Confirme a senha</label>
+      <input type="password" id="tknSenha2" placeholder="••••••" autocomplete="new-password"
+        style="font-size:18px;letter-spacing:4px;text-align:center;font-family:monospace">
+    </div>
+    <div id="tknErro" style="display:none;color:#c0392b;font-size:13px;font-weight:600;margin-bottom:8px;text-align:center"></div>
+    <div class="modal-actions">
+      <button class="btn" id="tknAgora">Agora não</button>
+      <button class="btn primary" id="tknOk">Salvar senha →</button>
+    </div>
+  </div>
+</div>
+
 <div id="genModal" class="modal-bg" style="display:none">
   <div class="modal">
     <h3>⚙️ Gerar escala automática</h3>
@@ -814,6 +836,7 @@ function checkURLToken(){
     salvarSessao(); fecharLoginGate(); aplicarPapel(); setTab('minha');
     history.replaceState(null,'',window.location.pathname);
     mostrarToast('👋 Bem-vindo(a), '+c.nome.split(' ')[0]+'!','#1b5e20');
+    setTimeout(()=>mostrarAvisoSenhaToken(c.id), 1200);
     return true;
   }
   return false;
@@ -1089,7 +1112,9 @@ function renderColab(){
       : (fazCC?'<span class="pill p-tarde">Sim</span>':'<span class="pill" style="background:#fde2dc;color:#c0392b">Não</span>');
     html+='<tr data-id="'+c.id+'"><td><b>'+c.nome+'</b></td><td>'+c.horario+'</td><td><span class="pill p-'+c.periodo+'">'+PERIODOS[c.periodo].nome+'</span></td><td>'+ccCel+'</td>';
     if(editing){
-      html+='<td style="white-space:nowrap"><div style="display:flex;gap:4px;align-items:center"><button class="iconbtn" data-act="edit" title="Editar">✏️</button><button class="btn mini" data-act="ferias" title="Registrar férias ou afastamento" style="font-size:11px;padding:3px 8px;background:#e8f4fd;border-color:#90cce8;color:#0d47a1">🏖️ Férias</button><button class="iconbtn" data-act="del" title="Remover">🗑️</button></div></td>';
+      const temSenha=!!c.senha;
+      const senhaLabel=temSenha?'<span title="Senha definida" style="font-size:10px;color:#2e7d32">✅</span>':'<span title="Sem senha" style="font-size:10px;color:#e65100">⚠️</span>';
+      html+='<td style="white-space:nowrap"><div style="display:flex;gap:4px;align-items:center"><button class="iconbtn" data-act="edit" title="Editar">✏️</button><button class="btn mini" data-act="ferias" title="Registrar férias ou afastamento" style="font-size:11px;padding:3px 8px;background:#e8f4fd;border-color:#90cce8;color:#0d47a1">🏖️ Férias</button><button class="iconbtn" data-act="resetsenha" title="Redefinir senha">🔑'+senhaLabel+'</button><button class="iconbtn" data-act="del" title="Remover">🗑️</button></div></td>';
     }
     html+='</tr>';
   });
@@ -1167,6 +1192,7 @@ function renderColab(){
         const tr=b.closest('tr'); const id=tr.dataset.id;
         if(b.dataset.act==='del') delColab(id);
         else if(b.dataset.act==='ferias') addFerias(id);
+        else if(b.dataset.act==='resetsenha') resetSenhaColab(id);
         else editColab(id);
       });
     });
@@ -2249,6 +2275,38 @@ document.getElementById('superOk').addEventListener('click',()=>{
   setTab('escala');
 });
 /* ============== FIM SUPER ADMIN ============== */
+/* ---- Aviso de senha após login por token ---- */
+function mostrarAvisoSenhaToken(colabId){
+  const c=state.colaboradores.find(x=>x.id===colabId);
+  if(!c||c.senha) return; // já tem senha ou não encontrou — não precisa do aviso
+  document.getElementById('tknSenha1').value='';
+  document.getElementById('tknSenha2').value='';
+  document.getElementById('tknErro').style.display='none';
+  document.getElementById('tokenSenhaModal').dataset.colabId=colabId;
+  document.getElementById('tokenSenhaModal').style.display='flex';
+  setTimeout(()=>document.getElementById('tknSenha1').focus(),120);
+}
+document.getElementById('tknAgora').addEventListener('click',()=>{ document.getElementById('tokenSenhaModal').style.display='none'; });
+document.getElementById('tknOk').addEventListener('click',()=>{
+  const s1=document.getElementById('tknSenha1').value;
+  const s2=document.getElementById('tknSenha2').value;
+  const err=document.getElementById('tknErro');
+  if(!s1||s1.length<4){ err.textContent='Mínimo 4 caracteres.'; err.style.display=''; return; }
+  if(s1!==s2){ err.textContent='As senhas não coincidem.'; err.style.display=''; document.getElementById('tknSenha2').value=''; return; }
+  const id=document.getElementById('tokenSenhaModal').dataset.colabId;
+  const c=state.colaboradores.find(x=>x.id===id);
+  if(c){ c.senha=s1; save(); }
+  document.getElementById('tokenSenhaModal').style.display='none';
+  mostrarToast('✅ Senha criada! Use-a para entrar direto na próxima vez.','#1b5e20');
+});
+/* ---- Reset de senha pelo gestor ---- */
+function resetSenhaColab(id){
+  const c=state.colaboradores.find(x=>x.id===id); if(!c)return;
+  if(!confirm('Redefinir a senha de '+c.nome+'?\n\nEle precisará criar uma nova senha no próximo acesso.'))return;
+  c.senha=null; save();
+  mostrarToast('🔑 Senha de '+c.nome.split(' ')[0]+' redefinida. Ele criará uma nova no próximo acesso.','#1565c0');
+  renderColab();
+}
 // (old login modal listeners removed — replaced by loginGate)
 function copyLinkColab(id){
   const c=state.colaboradores.find(x=>x.id===id); if(!c)return;
