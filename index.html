@@ -2,7 +2,12 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1e9e57">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Escala HSC">
 <title>Controle de Jornada e Plantões — Raio-X HSC</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
 <style>
@@ -189,9 +194,59 @@
     .mk-cc{font-size:10px;height:17px}
   }
   @media(max-width:640px){
-    th.col-n{width:auto}
-    table.escala{font-size:11px}
-    .day-row .dlabel{width:110px}
+    /* ---- Header ---- */
+    header.top{padding:10px 12px;gap:8px}
+    header.top h1{font-size:13px;letter-spacing:0}
+    header.top .sub{display:none}
+    .user-chip{font-size:11px;padding:4px 8px}
+    #syncStatus{display:none}
+    /* ---- Tabs ---- */
+    .tabs{padding:0 4px;gap:0}
+    .tab{padding:10px 9px;font-size:12px}
+    /* ---- Main ---- */
+    main{padding:10px 8px}
+    /* ---- Toolbar ---- */
+    .toolbar{gap:5px;margin-bottom:10px}
+    .toolbar button.btn,.toolbar select,.toolbar input{font-size:12px;padding:6px 10px}
+    /* ---- Escala: scroll horizontal ---- */
+    #escalaWrap .card{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    table.escala{font-size:11px;min-width:480px}
+    table.escala th,table.escala td{padding:3px 4px}
+    th.col-n{min-width:80px;max-width:100px;width:90px;font-size:10px}
+    th.col-h{width:46px}
+    td.nome{font-size:11px;padding-left:5px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    td.hora{font-size:10px}
+    td.cell{min-width:34px}
+    .mk{min-width:20px;height:19px;font-size:11px;padding:0 5px}
+    .week-bar{font-size:13px;padding:6px}
+    /* ---- Minha Escala ---- */
+    .day-row{flex-wrap:wrap;gap:6px;padding:8px 10px}
+    .day-row .dlabel{width:auto;min-width:0;flex:0 0 auto}
+    .stats{gap:8px}
+    .stat{padding:9px 12px;min-width:70px}
+    .stat .n{font-size:20px}
+    /* ---- Trocas ---- */
+    .troca-card{padding:8px 10px}
+    .inbox-panel{padding:8px 10px}
+    /* ---- Colaboradores ---- */
+    .invite-section,#colabWrap .addform{overflow-x:auto}
+    #colabWrap .addform{flex-direction:column;gap:10px}
+    table.colab{min-width:360px}
+    #colabWrap>*{overflow-x:auto}
+    /* ---- Modais ---- */
+    .modal{padding:16px 14px}
+    .modal-actions{flex-wrap:wrap;gap:6px}
+    .modal-actions button{flex:1 1 auto;justify-content:center}
+    /* ---- Legend ---- */
+    .legend{gap:10px;font-size:11.5px;padding:8px 10px}
+    /* ---- Avisos ---- */
+    .avisos{font-size:12px;padding:8px 12px}
+  }
+  @media(max-width:400px){
+    header.top h1{font-size:12px}
+    .tab{padding:9px 7px;font-size:11px}
+    th.col-n{width:72px}
+    table.escala{font-size:10px;min-width:420px}
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
