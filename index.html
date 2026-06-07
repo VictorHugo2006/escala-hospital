@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Jornada e Plantões — Raio-X HSC</title>
+<style>
+  :root{
+    --manha:#fdead0; --manha-h:#fcd5b4;
+    --tarde:#dbeef4; --tarde-h:#b8d9e8;
+    --especial:#d8e4bc; --especial-h:#c4d79b;
+    --noite:#fff8c9; --noite-h:#fdf0a0;
+    --sab:#c9d4cb; --dom:#dcd6ec;
+    --rosa:#f0a8d6; --azul:#4f81bd;
+    --verde:#1e9e57; --verde-d:#157a43;
+    --linha:#9aa7b0; --txt:#1f2a33;
+    --bg:#eef2f5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+  header.top{background:linear-gradient(135deg,var(--verde),var(--verde-d));color:#fff;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+  header.top h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.3px}
+  header.top .sub{font-size:12px;opacity:.9}
+  .spacer{flex:1}
+  .tabs{display:flex;gap:4px;background:#fff;padding:0 12px;border-bottom:2px solid #d6dde2;position:sticky;top:0;z-index:20;overflow-x:auto}
+  .tab{padding:12px 16px;border:none;background:none;font-size:14px;font-weight:600;color:#5c6b75;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+  .tab.active{color:var(--verde-d);border-bottom-color:var(--verde)}
+  .tab:hover{color:var(--verde-d)}
+  main{padding:16px;max-width:1280px;margin:0 auto}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  button.btn{background:#fff;border:1px solid #c4ccd2;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#37434d;display:inline-flex;align-items:center;gap:6px}
+  button.btn:hover{background:#f4f7f9;border-color:#9aa7b0}
+  button.btn.primary{background:var(--verde);color:#fff;border-color:var(--verde-d)}
+  button.btn.primary:hover{background:var(--verde-d)}
+  button.btn.on{background:#ffe9a8;border-color:#e0b94a;color:#7a5a00}
+  .gestor-only{display:none!important}
+  body.editing .gestor-only{display:inline-flex!important}
+  .user-chip{font-size:12px;font-weight:700;color:#fff;background:rgba(255,255,255,.18);padding:6px 11px;border-radius:14px;white-space:nowrap}
+  .colab-mode .somente-gestor{display:none!important}
+  .colab-mode .sel-colab{display:none!important}
+  .colab-mode #tabTrocaBadge.gestorbadge{display:none!important}
+  .colab-painel{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);padding:14px 18px;margin-bottom:16px}
+  .colab-painel h2{margin:0 0 4px;font-size:18px;color:var(--verde-d)}
+  .colab-painel .acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .colab-alerta{background:#fff6e0;border:1px solid #e0c060;border-radius:8px;padding:8px 12px;color:#7a5a00;font-size:13px;font-weight:600;margin-top:8px}
+  .colab-dica{background:#eef6f0;border:1px solid #bfe0cb;border-radius:8px;padding:8px 12px;color:#177a3c;font-size:12.5px;margin-top:8px}
+  select,input[type=text]{padding:8px 10px;border:1px solid #c4ccd2;border-radius:8px;font-size:13px;font-family:inherit}
+  .card{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden;margin-bottom:18px}
+  .week-bar{background:var(--verde);color:#fff;text-align:center;font-weight:700;font-size:16px;padding:8px;letter-spacing:.5px}
+  table.escala{border-collapse:collapse;width:100%;font-size:13px}
+  table.escala th,table.escala td{border:1px solid var(--linha);padding:4px 6px;text-align:center}
+  table.escala thead th{background:var(--especial-h);font-weight:700;text-decoration:underline;font-size:12.5px}
+  table.escala thead th .dnum{display:block;font-size:11px;font-weight:600;text-decoration:none;opacity:.75}
+  th.col-h{width:78px}
+  th.col-n{width:150px}
+  td.hora{font-weight:700;font-size:12px;white-space:nowrap}
+  td.nome{font-weight:700;text-align:left;padding-left:8px}
+  td.nome.dom{background:var(--rosa)!important}
+  td.nome.sab{background:var(--azul)!important;color:#fff}
+  .col-sab{background:var(--sab)}
+  .col-dom{background:var(--dom)}
+  tr.manha td.hora,tr.manha td.nome{background:var(--manha)}
+  tr.tarde td.hora,tr.tarde td.nome{background:var(--tarde)}
+  tr.especial td.hora,tr.especial td.nome{background:var(--especial)}
+  tr.noite td.hora,tr.noite td.nome{background:var(--noite)}
+  td.cell{cursor:default;min-width:54px;font-weight:600}
+  body.editing td.cell{cursor:pointer}
+  body.editing td.cell:hover{outline:2px solid var(--verde);outline-offset:-2px}
+  .mk{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:23px;padding:0 8px;border-radius:12px;font-size:12.5px;font-weight:800;color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.18)}
+  .mk-x{background:#1e9e57}
+  .mk-cc{background:#fbe3df;color:#c0392b;letter-spacing:.5px;font-size:10.5px;font-weight:700;box-shadow:none;min-width:0;height:19px;padding:0 6px}
+  .mk+.mk{margin-left:3px}
+  .mk-txt{font-size:11px;font-weight:700;color:#37434d}
+  td.cell .cc{font-size:11px;color:#c0392b;font-weight:700}
+  td.span{font-weight:700;color:var(--verde-d);font-style:italic;background:var(--especial)}
+  tr.sep td{height:16px;padding:0;background:#cfd8de;border:none;border-top:2px solid #6b7a85;border-bottom:2px solid #6b7a85}
+  tr.foot td{background:#eef2f5;font-weight:700;font-size:11.5px;color:#5c6b75}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:60;padding:16px}
+  .modal{background:#fff;border-radius:14px;padding:22px 26px;width:min(440px,94vw);box-shadow:0 12px 44px rgba(0,0,0,.3)}
+  .modal h3{margin:0 0 6px;color:var(--verde-d);font-size:18px}
+  .modal p{margin:0 0 10px;font-size:13px;color:#5c6b75}
+  .genrow{display:flex;gap:8px;align-items:center;margin:6px 0 12px}
+  .genrow input{width:88px;font-size:16px;text-align:center}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .chip{padding:5px 11px;font-size:12px}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  .geninfo{background:#eef6f0;border:1px solid #bfe0cb;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#177a3c;min-height:18px}
+  .modal .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+  .modal .fld label{font-size:11px;color:#7a8893;font-weight:600;text-transform:uppercase}
+  .modal .fld select{font-size:14px;padding:8px 10px;border:1px solid #c4ccd2;border-radius:8px}
+  .troca-flag{font-size:10px;margin-left:1px}
+  .obs-troca{display:block;font-size:8.5px;color:#c0392b;font-weight:700;line-height:1.15;margin-top:2px}
+  .obs-folga{display:block;font-size:8.5px;color:#2b6fa0;font-weight:700;line-height:1.15;margin-top:2px}
+  .obs-remanejo{display:block;font-size:8.5px;color:#7a5a00;font-weight:700;line-height:1.15;margin-top:2px}
+  .obs-feriado{display:block;font-size:8.5px;color:#c0392b;font-weight:800;line-height:1.15;margin-top:2px;letter-spacing:.3px}
+  .inbox-panel{background:#fffbeb;border:1.5px solid #e6a817;border-radius:10px;padding:10px 14px;margin:8px 0 4px}
+  .inbox-hdr{font-weight:800;font-size:13px;color:#b8500a;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .inbox-card{background:#fff;border:1px solid #e3e8eb;border-left:4px solid #c4ccd2;border-radius:8px;padding:7px 12px;margin-bottom:6px;font-size:13px;line-height:1.4}
+  .inbox-card.nova{border-left-color:#2b7de0;background:#f3f8ff}
+  .inbox-tipo{font-weight:800;font-size:10px;letter-spacing:.5px;padding:1px 5px;border-radius:4px;background:#eee;margin-right:4px}
+  .inbox-tipo.troca{background:#fde8e8;color:#c0392b}
+  .inbox-tipo.folga{background:#e8f4fd;color:#2b6fa0}
+  .inbox-ac{margin-top:5px;display:flex;gap:6px}
+  .feriado-hdr{display:block;color:#c0392b;font-size:8px;font-weight:800;text-decoration:none;letter-spacing:.5px}
+  .badge-n{background:#e02424;color:#fff;border-radius:10px;padding:0 6px;font-size:11px;font-weight:800;margin-left:4px;display:inline-flex;align-items:center}
+  .troca-card{background:#fff;border:1px solid #e3e8eb;border-left:4px solid #c4ccd2;border-radius:10px;padding:10px 14px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .troca-card.nova{border-left-color:#2b7de0;background:#f3f8ff}
+  .troca-card .desc{font-size:13px;font-weight:600}
+  .troca-card .st{font-size:12px;font-weight:700;margin-top:3px}
+  .troca-card .ac{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+  .troca-sec{margin-bottom:18px}
+  .troca-sec h3{margin:10px 0 8px;font-size:15px;color:var(--verde-d)}
+  .troca-empty{color:#90a0aa;font-size:13px;font-style:italic}
+  .btn.mini{padding:5px 12px;font-size:12px}
+  .btn.ok{background:#177a3c;color:#fff;border-color:#0f5a2b}
+  .btn.no{background:#fff;color:#c0392b;border-color:#e0a8a0}
+  .avisos{background:#fff6e0;border:1px solid #e0c060;border-radius:10px;padding:10px 16px;margin-top:12px;font-size:13px;color:#7a5a00}
+  .avisos.ok{background:#e7f6ec;border-color:#9bd3ad;color:#177a3c}
+  .avisos ul{margin:6px 0 0;padding-left:20px}
+  .avisos li{margin:2px 0}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;padding:10px 14px;background:#fff;border-radius:10px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+  .legend .it{display:flex;align-items:center;gap:6px}
+  .sw{width:16px;height:16px;border-radius:4px;border:1px solid #aab}
+  /* Minha escala */
+  .minha-grid{display:grid;gap:14px}
+  .day-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .day-row .dlabel{width:150px;font-weight:700}
+  .day-row .dlabel small{display:block;font-weight:500;color:#7a8893}
+  .badge{padding:4px 12px;border-radius:20px;font-weight:700;font-size:12.5px}
+  .b-work{background:#d6f0dd;color:#177a3c}
+  .b-cc{background:#fde2dc;color:#c0392b}
+  .b-off{background:#eef0f2;color:#90a0aa}
+  .b-wknd{background:#e7dcf5;color:#6b3fa0}
+  .stats{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 18px}
+  .stat{background:#fff;border-radius:10px;padding:12px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center;min-width:90px}
+  .stat .n{font-size:24px;font-weight:800;color:var(--verde-d)}
+  .stat .l{font-size:11px;color:#7a8893;text-transform:uppercase;letter-spacing:.5px}
+  .wk-block{margin-bottom:8px}
+  .wk-block h3{margin:14px 0 6px;font-size:14px;color:var(--verde-d)}
+  /* Colaboradores */
+  table.colab{border-collapse:collapse;width:100%;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+  table.colab th,table.colab td{padding:9px 12px;border-bottom:1px solid #e3e8eb;text-align:left;font-size:13px}
+  table.colab th{background:#f4f7f9;color:#5c6b75;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  .pill{display:inline-block;padding:2px 10px;border-radius:14px;font-size:11.5px;font-weight:700}
+  .p-manha{background:var(--manha);color:#8a5a1e}
+  .p-tarde{background:var(--tarde);color:#1f6f8b}
+  .p-especial{background:var(--especial);color:#4a6b1e}
+  .p-noite{background:var(--noite-h);color:#7a6500}
+  .iconbtn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px 6px;border-radius:6px}
+  .iconbtn:hover{background:#eef2f5}
+  .addform{display:flex;gap:8px;flex-wrap:wrap;align-items:end;background:#fff;padding:14px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:14px}
+  .addform .fld{display:flex;flex-direction:column;gap:4px}
+  .addform label{font-size:11px;color:#7a8893;font-weight:600;text-transform:uppercase}
+  .guia{background:#fff;border-radius:12px;padding:20px 24px;box-shadow:0 1px 4px rgba(0,0,0,.06);line-height:1.7;max-width:820px}
+  .guia h2{color:var(--verde-d);margin-top:0}
+  .guia h3{color:var(--verde-d);margin-bottom:4px}
+  .guia code{background:#eef2f5;padding:2px 6px;border-radius:4px;font-weight:700}
+  .hint{font-size:12px;color:#7a8893;margin:6px 0 16px}
+  @media print{
+    @page{ size: A4 landscape; margin: 7mm; }
+    *{ -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; }
+    html,body{height:100%}
+    body{display:flex;flex-direction:column;background:#fff}
+    .tabs,.toolbar,header.top button,.avisos,.legend{display:none!important}
+    header.top{flex:0 0 auto;box-shadow:none;padding:5px 10px;gap:6px}
+    header.top h1{font-size:15px}
+    header.top .sub{font-size:10px}
+    main{flex:1 1 auto;min-height:0;padding:0;margin:0;max-width:none;width:100%;display:flex;flex-direction:column}
+    #tab-escala{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+    #escalaWrap{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+    .card{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;box-shadow:none;margin:0}
+    .week-bar{flex:0 0 auto;font-size:14px;padding:5px}
+    table.escala{flex:1 1 auto;height:100%;width:100%;font-size:13px}
+    table.escala th,table.escala td{padding:4px 6px}
+    table.escala thead th{font-size:12px}
+    table.escala thead th .dnum{font-size:9px}
+    td.hora{font-size:11px}
+    tr.sep td{height:6px;padding:0}
+    .mk{height:19px;min-width:19px;font-size:12px;padding:0 7px;box-shadow:none}
+    .mk-cc{font-size:10px;height:17px}
+  }
+  @media(max-width:640px){
+    th.col-n{width:auto}
+    table.escala{font-size:11px}
+    .day-row .dlabel{width:110px}
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>🏥 Sistema de Controle de Jornada e Plantões — Raio-X HSC</h1>
+    <div class="sub">Hospital Santa Catarina · Guia de escalas para gestores e colaboradores</div>
+  </div>
+  <div class="spacer"></div>
+  <span id="userChip" class="user-chip"></span>
+  <button class="btn gestor-only" id="btnInbox" title="Caixa de solicitações pendentes de autorização">📨 Trocas/Exceções <span id="inboxBadge" class="badge-n" style="display:none">0</span></button>
+  <button class="btn somente-gestor" id="btnEdit">🔓 Modo Gestor</button>
+  <button class="btn" id="btnLogin">👤 Entrar</button>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="escala">📅 Escala</button>
+  <button class="tab" data-tab="minha">👤 Minha Escala</button>
+  <button class="tab" data-tab="troca">🔄 Trocas/Exceções <span id="tabTrocaBadge" class="badge-n" style="display:none">0</span></button>
+  <button class="tab somente-gestor" data-tab="colab">👥 Colaboradores</button>
+  <button class="tab" data-tab="guia">📖 Guia / Legenda</button>
+</nav>
+
+<main>
+  <!-- ESCALA -->
+  <section id="tab-escala">
+    <div class="toolbar">
+      <button class="btn" id="prevWeek">◀</button>
+      <select id="weekSel"></select>
+      <button class="btn" id="nextWeek">▶</button>
+      <button class="btn primary gestor-only" id="btnAutoWeek" title="Gera automaticamente o período que você escolher (semanas/meses) seguindo as regras">⚙️ Gerar escala (auto)</button>
+      <button class="btn gestor-only" id="btnDupWeek" title="Cria a próxima semana copiando a escala da semana atual (para você só ajustar)">📋 Duplicar p/ próxima</button>
+      <button class="btn gestor-only" id="btnNewWeek" title="Cria a próxima semana em branco">➕ Nova semana</button>
+      <button class="btn gestor-only" id="btnDelWeek" title="Remove a semana atual" style="color:#c0392b">🗑️ Remover semana</button>
+      <span class="spacer"></span>
+      <span id="editHint" class="hint" style="margin:0;display:none">✏️ Edição ativa: clique numa célula para alternar (vazio → X → CC). Duplo-clique para texto livre.</span>
+      <button class="btn" id="btnPrint">🖨️ Imprimir</button>
+    </div>
+    <div class="legend">
+      <div class="it"><span class="sw" style="background:var(--manha)"></span> Manhã</div>
+      <div class="it"><span class="sw" style="background:var(--tarde)"></span> Tarde</div>
+      <div class="it"><span class="sw" style="background:var(--especial)"></span> Especial</div>
+      <div class="it"><span class="sw" style="background:var(--noite)"></span> Noite</div>
+      <div class="it"><span class="sw" style="background:var(--rosa)"></span> Trabalha domingo</div>
+      <div class="it"><span class="sw" style="background:var(--azul)"></span> Trabalha sábado</div>
+      <div class="it"><span class="mk mk-x">✓</span> = plantão &nbsp;&nbsp; <span class="mk mk-x">✓</span><span class="mk mk-cc">CC</span> = Centro Cirúrgico</div>
+      <div class="it"><span style="color:#c0392b;font-weight:700;font-size:12px">🔄 troca</span> = Dia Trocado (troca aprovada pelo gestor)</div>
+    </div>
+    <div id="escalaInbox"></div>
+    <div id="escalaWrap"></div>
+  </section>
+
+  <!-- MINHA ESCALA -->
+  <section id="tab-minha" style="display:none">
+    <div class="toolbar">
+      <span class="sel-colab"><label style="font-weight:600">Selecione seu nome:</label>
+      <select id="meSel"></select></span>
+      <span class="spacer"></span>
+      <button class="btn" id="btnPrintMe">🖨️ Imprimir</button>
+    </div>
+    <div id="minhaWrap"></div>
+  </section>
+
+  <!-- COLABORADORES -->
+  <section id="tab-colab" style="display:none">
+    <div class="toolbar"><h2 style="margin:0;font-size:18px">Colaboradores cadastrados</h2></div>
+    <div id="addFormWrap"></div>
+    <div id="colabWrap"></div>
+  </section>
+
+  <!-- TROCAS -->
+  <section id="tab-troca" style="display:none">
+    <div class="toolbar">
+      <span class="sel-colab"><label style="font-weight:600">Sou o(a):</label>
+      <select id="euSel"></select></span>
+      <span id="trocaQuem" class="user-chip" style="display:none;color:#1f2a33;background:#eef2f5"></span>
+      <button class="btn primary" id="btnNovaTroca">➕ Solicitar troca</button>
+      <span class="spacer"></span>
+    </div>
+    <div id="trocaWrap"></div>
+  </section>
+
+  <!-- GUIA -->
+  <section id="tab-guia" style="display:none">
+    <div class="guia">
+      <h2>📖 Guia de uso & Legenda</h2>
+      <p>Este sistema serve tanto ao <b>gestor</b> (para montar e ajustar a escala) quanto aos <b>colaboradores</b> (para consultar seus próprios plantões).</p>
+
+      <h3>Marcações nas células</h3>
+      <ul>
+        <li><span class="mk mk-x">✓</span> — dia de plantão / trabalho normal.</li>
+        <li><span class="mk mk-x">✓</span> <span class="mk mk-cc">CC</span> — plantão no <b>Centro Cirúrgico</b> (continua sendo plantão). A designação do CC pode mudar dia a dia, por isso é marcada em cada célula individualmente.</li>
+        <li><b style="color:#c0392b">🔄 troca c/ Nome</b> — plantão resultante de uma <b>troca já autorizada</b> pelo gestor (Dia Trocado).</li>
+        <li><b>Vazio</b> — folga / sem plantão naquele dia.</li>
+      </ul>
+
+      <h3>Cores das linhas (período)</h3>
+      <ul>
+        <li><span class="pill p-manha">Manhã</span> — turnos 7h-13h e 8h-14h.</li>
+        <li><span class="pill p-tarde">Tarde</span> — turnos 13h-19h, 14h-20h, 14h-18:48h.</li>
+        <li><span class="pill p-especial">Especial</span> — coberturas/treinamentos (ex.: Abraão).</li>
+        <li><span class="pill p-noite">Noite</span> — plantões noturnos 19h-7h e 18h-22:48h.</li>
+      </ul>
+
+      <h3>Destaque de fim de semana</h3>
+      <ul>
+        <li><b>Nome em rosa</b> — colaborador escalado para o <b>domingo</b> da semana.</li>
+        <li><b>Nome em azul</b> — colaborador escalado para o <b>sábado</b> da semana.</li>
+      </ul>
+      <p>Esse destaque é calculado automaticamente para os turnos diurnos, facilitando ver de relance o rodízio de fim de semana.</p>
+
+      <h3>Acesso: Gestor × Colaborador</h3>
+      <ul>
+        <li>Clique em <b>👤 Entrar</b> (canto superior direito) e escolha o papel. O chip ao lado mostra quem está logado.</li>
+        <li><b>🛡️ Gestor</b> (Andreia / Junior): acesso total — monta a escala, gera semanas, cadastra pessoas/gestores e autoriza trocas.</li>
+        <li><b>👤 Colaborador</b>: vê a escala geral (leitura), a <b>sua</b> escala e solicita/aceita trocas como ele mesmo. Não acessa cadastro nem edição.</li>
+        <li>Para alternar de usuário, use <b>🔁 Trocar usuário</b>. <i>(Protótipo sem senha — na versão final cada um terá login próprio.)</i></li>
+      </ul>
+
+      <h3>Para o gestor</h3>
+      <ul>
+        <li>Entre como <b>Gestor</b> e clique em <b>🔓 Modo Gestor</b> para liberar a edição.</li>
+        <li>Na aba <b>Escala</b>, clique numa célula para alternar <code>vazio → ✓ → ✓ CC → vazio</code>. Duplo-clique permite digitar texto livre (ex.: <i>"X 7h-19h"</i>, <i>"Férias"</i>).</li>
+        <li>Na aba <b>Colaboradores</b> você adiciona/edita/remove pessoas e também os <b>🛡️ Gestores</b>.</li>
+        <li>O painel de <b>avisos</b> abaixo da grade confere as 24h semanais, o descanso de 72h do noturno e a cobertura do CC.</li>
+        <li>Tudo é salvo automaticamente neste dispositivo/navegador.</li>
+      </ul>
+
+      <h3>Criar as próximas semanas e meses</h3>
+      <p>Com o <b>Modo Gestor</b> ativo, na aba <b>Escala</b>, ao lado do seletor de semanas:</p>
+      <ul>
+        <li><b>⚙️ Gerar escala (auto)</b> — abre um diálogo para escolher <b>quantas semanas/meses</b> gerar. O sistema cria tudo seguindo as regras (24h, rodízio de FDS por justiça, CC, noturno 12×72 e compensação) — a base já vem quase pronta.</li>
+        <li><b>📋 Duplicar p/ próxima</b> — cria a próxima semana <i>copiando</i> a atual.</li>
+        <li><b>➕ Nova semana</b> — cria a próxima <i>em branco</i>.</li>
+        <li><b>🗑️ Remover semana</b> — apaga a semana exibida.</li>
+      </ul>
+      <p>Tudo o que define o padrão é aplicado sozinho nas novas semanas: as <b>cores por turno</b>, o <b>espaçamento entre turnos</b>, o destaque de quem trabalha <b>sábado (azul)</b> e <b>domingo (rosa)</b> e o <b>total por dia</b>.</p>
+      <p class="hint">Dica de rotina mensal: use <b>⚙️ Gerar escala (auto)</b> com <b>"1 mês"</b> para já criar o mês seguinte e depois ajuste folgas, fins de semana e exceções na mão.</p>
+
+      <h3>🔄 Trocas de plantão</h3>
+      <p>Na aba <b>🔄 Trocas</b> clique em <b>➕ Solicitar troca</b>. (Se você entrou como colaborador, já fica travado como você; o gestor pode escolher por quem age em <b>"Sou o(a)"</b>.)</p>
+      <ol>
+        <li>Você informa o seu <b>Dia de agenda oficial</b> (um dia normal que você trabalha) e o <b>Dia Trocado</b> (o dia que você assume do colega) — os dois lados da troca.</li>
+        <li>O <b>colega</b> vê a solicitação em <b>"Trocas recebidas"</b> e <b>Aceita</b> (ou Recusa).</li>
+        <li>Após o aceite, vai para a fila do <b>gestor</b>. Aparece um contador <span class="badge-n" style="position:static">N</span> em <b>📨 Trocas</b> (não lidas) — o gestor <b>Autoriza</b> ou Recusa.</li>
+        <li>Só após a autorização a escala muda, e os plantões ganham a marca vermelha <b>🔄 troca c/ Nome</b> na grade.</li>
+      </ol>
+      <p class="hint">⚠️ Nesta versão (arquivo local) as trocas funcionam apenas no mesmo dispositivo/navegador. Para funcionar entre celulares de colaboradores e gestor, será necessária a versão com banco compartilhado (Next.js + Supabase).</p>
+
+      <h3>🏖️ Folga garantida de fim de semana</h3>
+      <p>O <b>colaborador</b> pode reservar um <b>sábado ou domingo</b> de folga para um compromisso, mesmo antes da escala existir:</p>
+      <ol>
+        <li>No <b>modo colaborador</b>, em <b>Minha Escala</b>, clique em <b>🏖️ Pedir folga (fim de semana)</b>, escolha a data (Sáb/Dom) e o motivo. É exigido <b>no mínimo 6 dias</b> de antecedência.</li>
+        <li>O pedido vai para a <b>caixa da gestora</b> (📨 Trocas → seção "Pedidos de folga") — ela <b>Aprova</b> ou Recusa.</li>
+        <li>Ao <b>gerar novas escalas</b>, o pedido aprovado já é respeitado: a pessoa não é escalada naquele dia e é <b>realocada automaticamente</b> (mantendo as 24h). Se a semana já existir, o ajuste é feito na hora da aprovação.</li>
+      </ol>
+      <p class="hint">A antecedência mínima (padrão 6 dias) vale apenas para folgas de fim de semana.</p>
+
+      <h3>📅 Feriados e rodízio de feriado</h3>
+      <ul>
+        <li>Cadastre as datas em <b>Colaboradores → 📅 Feriados</b> (data + nome opcional).</li>
+        <li>Na grade, todo plantão que cai num feriado recebe o aviso vermelho <b style="color:#c0392b">FERIADO</b> e o cabeçalho do dia também marca FERIADO.</li>
+        <li><b>Rodízio (só nas próximas escalas geradas):</b> no feriado, escala-se <b>1 pessoa por turno</b> (manhã e tarde) — entra quem está há mais tempo sem trabalhar feriado; quem trabalha vai para o <b>fim da fila</b>. Vale inclusive quando o feriado cai no fim de semana. Os demais são remanejados para manter as 24h.</li>
+        <li>As <b>escalas já criadas não são alteradas</b> — o rodízio passa a valer da próxima geração em diante.</li>
+      </ul>
+
+      <h3>Backup e compartilhamento</h3>
+      <p>Use <b>Exportar</b> para gerar um arquivo de backup, e <b>Importar</b> em outro dispositivo para carregar a mesma escala. Para divulgar aos colaboradores, compartilhe este arquivo (está numa pasta do Google Drive) ou imprima a escala.</p>
+      <div class="toolbar" style="margin-top:10px">
+        <button class="btn primary" id="btnExport">⬇️ Exportar backup</button>
+        <button class="btn" id="btnImport">⬆️ Importar backup</button>
+        <button class="btn" id="btnReset" style="color:#c0392b">↺ Restaurar dados originais</button>
+        <input type="file" id="fileImport" accept="application/json" style="display:none">
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="genModal" class="modal-bg" style="display:none">
+  <div class="modal">
+    <h3>⚙️ Gerar escala automática</h3>
+    <p>As semanas serão criadas a partir da próxima ainda sem escala, seguindo todas as regras (24h, rodízio de FDS por justiça, CC, noturno 12×72 e compensação).</p>
+    <div class="genrow">
+      <input type="number" id="genQtd" min="1" max="60" value="4">
+      <select id="genUni"><option value="semanas">semana(s)</option><option value="meses">mês(es)</option></select>
+    </div>
+    <div class="chips">
+      <button class="btn chip" data-q="1" data-u="semanas">1 semana</button>
+      <button class="btn chip" data-q="2" data-u="semanas">2 semanas</button>
+      <button class="btn chip" data-q="4" data-u="semanas">4 semanas</button>
+      <button class="btn chip" data-q="1" data-u="meses">1 mês</button>
+      <button class="btn chip" data-q="2" data-u="meses">2 meses</button>
+      <button class="btn chip" data-q="3" data-u="meses">3 meses</button>
+    </div>
+    <div class="geninfo" id="genInfo"></div>
+    <div class="modal-actions">
+      <button class="btn" id="genCancel">Cancelar</button>
+      <button class="btn primary" id="genOk">Gerar</button>
+    </div>
+  </div>
+</div>
+
+<div id="trocaModal" class="modal-bg" style="display:none">
+  <div class="modal">
+    <h3>🔄 Solicitar troca de plantão</h3>
+    <p>Combine a troca com um colega: informe o seu <b>Dia de agenda oficial</b> (que você vai passar) e o <b>Dia Trocado</b> (que você vai assumir do colega). O colega precisa aceitar e, depois, o gestor autoriza.</p>
+    <div class="fld"><label>Semana</label><select id="tkSemana"></select></div>
+    <div class="fld"><label>Trocar com (colega)</label><select id="tkPara"></select></div>
+    <div class="fld"><label>Meu Dia de agenda oficial (vou passar)</label><select id="tkDiaA"></select></div>
+    <div class="fld"><label>Dia Trocado (vou assumir do colega)</label><select id="tkDiaB"></select></div>
+    <div class="geninfo" id="tkInfo"></div>
+    <div class="modal-actions">
+      <button class="btn" id="tkCancel">Cancelar</button>
+      <button class="btn primary" id="tkOk">Enviar solicitação</button>
+    </div>
+  </div>
+</div>
+
+<div id="loginModal" class="modal-bg" style="display:none">
+  <div class="modal">
+    <h3>👤 Entrar no sistema</h3>
+    <p>Escolha como deseja acessar. <i>(Protótipo sem senha — na versão final cada pessoa terá login próprio.)</i></p>
+    <div class="fld"><label>Acessar como</label>
+      <select id="loginPapel"><option value="colaborador">Colaborador</option><option value="gestor">Gestor</option></select>
+    </div>
+    <div class="fld" id="loginColabWrap"><label>Selecione seu nome</label><select id="loginColab"></select></div>
+    <div class="fld" id="loginGestorWrap"><label>Selecione o gestor</label><select id="loginGestor"></select></div>
+    <div class="modal-actions">
+      <button class="btn" id="loginCancel">Cancelar</button>
+      <button class="btn primary" id="loginOk">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="folModal" class="modal-bg" style="display:none">
+  <div class="modal" style="width:min(540px,94vw)">
+    <h3>🏖️ Pedir folga garantida (fim de semana)</h3>
+    <p>Garanta um <b>sábado ou domingo</b> de folga para um compromisso, mesmo antes da escala estar pronta. Pedido com no mínimo <b id="folMinTxt">6</b> dias de antecedência. A gestora aprova e a escala já considera — você é realocado automaticamente.</p>
+    <div class="fld"><label>Data (sábado ou domingo)</label><input type="date" id="folData"></div>
+    <div class="fld"><label>Motivo (opcional)</label><input type="text" id="folMotivo" placeholder="ex.: casamento, viagem"></div>
+    <div class="geninfo" id="folInfo"></div>
+    <div class="modal-actions">
+      <button class="btn" id="folCancel">Cancelar</button>
+      <button class="btn primary" id="folOk">Enviar pedido</button>
+    </div>
+    <div id="folLista"></div>
+  </div>
+</div>
+
+<script>
+/* ============== DADOS BASE ============== */
+const DIAS = ['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo'];
+const DIAS_CURTO = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+const PERIODOS = {
+  manha:{nome:'Manhã'}, tarde:{nome:'Tarde'}, especial:{nome:'Especial'}, noite:{nome:'Noite'}
+};
+const SEMANAS_PADRAO = [
+  {id:'s1', startISO:'2026-06-08'},
+  {id:'s2', startISO:'2026-06-15'},
+  {id:'s3', startISO:'2026-06-22'},
+];
+const FERIADOS_PADRAO = [
+  {dataISO:'2026-01-01', nome:'Confraternização Universal'},
+  {dataISO:'2026-04-03', nome:'Sexta-Feira Santa'},
+  {dataISO:'2026-04-21', nome:'Tiradentes'},
+  {dataISO:'2026-05-01', nome:'Dia do Trabalho'},
+  {dataISO:'2026-06-04', nome:'Corpus Christi'},
+  {dataISO:'2026-09-07', nome:'Independência do Brasil'},
+  {dataISO:'2026-10-12', nome:'Nossa Senhora Aparecida'},
+  {dataISO:'2026-11-02', nome:'Finados'},
+  {dataISO:'2026-11-15', nome:'Proclamação da República'},
+  {dataISO:'2026-11-20', nome:'Consciência Negra'},
+  {dataISO:'2026-12-25', nome:'Natal'},
+];
+function pad2(n){return String(n).padStart(2,'0');}
+function weekInfo(s){
+  const start=new Date(s.startISO+'T00:00:00');
+  const dm=[]; let endd=start;
+  for(let i=0;i<7;i++){const d=new Date(start);d.setDate(start.getDate()+i);dm.push(pad2(d.getDate())+'/'+pad2(d.getMonth()+1));endd=d;}
+  const same=start.getMonth()===endd.getMonth();
+  const label = same
+    ? 'Semana ('+pad2(start.getDate())+' a '+pad2(endd.getDate())+'/'+pad2(start.getMonth()+1)+')'
+    : 'Semana ('+pad2(start.getDate())+'/'+pad2(start.getMonth()+1)+' a '+pad2(endd.getDate())+'/'+pad2(endd.getMonth()+1)+')';
+  return {id:s.id, startISO:s.startISO, dm, label};
+}
+
+const COLAB_PADRAO = [
+  {id:'gabriel',     nome:'GABRIEL',          horario:'7h-13h',     periodo:'manha'},
+  {id:'ivanor',      nome:'IVANOR',           horario:'7h-13h',     periodo:'manha', fazCC:false},
+  {id:'everson',     nome:'EVERSON',          horario:'7h-13h',     periodo:'manha'},
+  {id:'marcia',      nome:'MÁRCIA',           horario:'7h-13h',     periodo:'manha'},
+  {id:'fernanda',    nome:'FERNANDA',         horario:'7h-13h',     periodo:'manha'},
+  {id:'david',       nome:'DAVID',            horario:'8h-14h',     periodo:'manha'},
+  {id:'pamela',      nome:'PAMELA',           horario:'14h-20h',    periodo:'tarde'},
+  {id:'anamaria',    nome:'ANA MARIA',        horario:'13h-19h',    periodo:'tarde'},
+  {id:'carlos',      nome:'CARLOS',           horario:'13h-19h',    periodo:'tarde'},
+  {id:'simara',      nome:'SIMARA',           horario:'13h-19h',    periodo:'tarde'},
+  {id:'junior',      nome:'JUNIOR',           horario:'13h-19h',    periodo:'tarde'},
+  {id:'alessandra',  nome:'ALESSANDRA',       horario:'13h-19h',    periodo:'tarde'},
+  {id:'abraao',      nome:'ABRAÃO',           horario:'7h-19h',     periodo:'especial'},
+  {id:'pedro',       nome:'PEDRO',            horario:'18h-22:48h', periodo:'noite'},
+  {id:'thais',       nome:'THAIS',            horario:'19h-7h',     periodo:'noite'},
+  {id:'vanderlei',   nome:'VANDERLEI',        horario:'19h-7h',     periodo:'noite'},
+  {id:'fernandajustino', nome:'FERNANDA JUSTINO', horario:'19h-7h', periodo:'noite'},
+  {id:'rosimeri',    nome:'ROSIMERI',         horario:'19h-7h',     periodo:'noite'},
+];
+
+// '' vazio | 'X' | 'CC' (exibido X (CC)) | texto livre
+const ESCALA_PADRAO = {
+  s1:{
+    gabriel:['','','','','','',''],
+    ivanor:['X','X','X','X','','',''],
+    everson:['','','','X','CC','X',''],
+    marcia:['CC','X','X','','X','',''],
+    fernanda:['X','CC','X','','X','',''],
+    david:['X','X','CC','X','','',''],
+    pamela:['','','','CC','CC','','X'],
+    anamaria:['','','','','','',''],
+    carlos:['CC','','X','','','','X'],
+    simara:['','X','CC','X','X','',''],
+    junior:['X','X','','X','X','',''],
+    alessandra:['X','CC','X','X','','',''],
+    abraao:{span:'IRÁ TREINAR PAVN', horario:'14h-18:48h'},
+    pedro:['X','X','X','X','X','',''],
+    thais:['','','X','','','','X'],
+    vanderlei:['X','','','','X','',''],
+    fernandajustino:['','','','X','','X 7h-19h',''],
+    rosimeri:['','X','','','','X',''],
+  },
+  s2:{
+    gabriel:['','','','','','',''],
+    ivanor:['X','','','','X','','X'],
+    everson:['X','CC','X','CC','','',''],
+    marcia:['','','','X','CC','X',''],
+    fernanda:['X','X','CC','X','','',''],
+    david:['CC','X','X','','X','',''],
+    pamela:{span:'Férias 20 dias (término 15/06)'},
+    anamaria:['','','','','','',''],
+    carlos:['','CC','X','X','X','',''],
+    simara:['X','','CC','X','X','',''],
+    junior:['X','X','X','CC','','',''],
+    alessandra:['','X','','','CC','','X'],
+    abraao:{span:'COBRINDO FÉRIAS PAVN', horario:'7h-19h'},
+    pedro:['X','X','X','X','','',''],
+    thais:['','','','X','','X 7h-19h',''],
+    vanderlei:['','X','','','','X',''],
+    fernandajustino:['X','','','','X','',''],
+    rosimeri:['','','X','','','','X'],
+  },
+  s3:{
+    gabriel:['','','','','','',''],
+    ivanor:['X','X','X','X','','',''],
+    everson:['X','X','CC','X','','',''],
+    marcia:['','CC','X','X','X','',''],
+    fernanda:['CC','','','','CC','','X'],
+    david:['','','','CC','X','X',''],
+    pamela:{span:'Férias 20 dias (término 15/06)'},
+    anamaria:['','','','','','',''],
+    carlos:['CC','X','X','X','','',''],
+    simara:['X','CC','X','','CC','',''],
+    junior:['','','','CC','X','','X'],
+    alessandra:['X','X','CC','X','','',''],
+    abraao:{span:'COBRINDO FÉRIAS PAVN', horario:'7h-19h'},
+    pedro:['X','X','X','X','','',''],
+    thais:['','','','','','',''],
+    vanderlei:['','','','','','',''],
+    fernandajustino:['','','','','','',''],
+    rosimeri:['','','','','','',''],
+  }
+};
+
+const GESTORES_PADRAO = [
+  {id:'andreia', nome:'ANDREIA'},
+  {id:'junior',  nome:'JUNIOR'},
+];
+
+/* ============== ESTADO ============== */
+const LSKEY = 'escalaHospital_v1';
+let state = load();
+let curWeek = 0;
+let editing = false;
+
+function deepClone(o){return JSON.parse(JSON.stringify(o));}
+function defaultState(){
+  return {colaboradores:deepClone(COLAB_PADRAO), escala:deepClone(ESCALA_PADRAO), semanas:deepClone(SEMANAS_PADRAO), trocas:[], trocaCells:{}, gestores:deepClone(GESTORES_PADRAO), config:{antecedenciaDias:60}, folgas:[], folgaCells:{}, remanejoCells:{}, feriados:deepClone(FERIADOS_PADRAO)};
+}
+// migrações pontuais sobre estado salvo (idempotentes via flag)
+function migrar(s){
+  if(!s._migs) s._migs={};
+  if(!s._migs.semJonasLuan){
+    ['jonas','luan'].forEach(id=>{
+      s.colaboradores = s.colaboradores.filter(c=>c.id!==id);
+      Object.keys(s.escala||{}).forEach(wk=>{ if(s.escala[wk]) delete s.escala[wk][id]; });
+    });
+    s._migs.semJonasLuan = true;
+  }
+  if(!Array.isArray(s.trocas)) s.trocas=[];
+  if(!s.trocaCells) s.trocaCells={};
+  if(!Array.isArray(s.gestores)) s.gestores=deepClone(GESTORES_PADRAO);
+  if(!s.config) s.config={antecedenciaDias:60};
+  if(!s._migs.antec6){ s.config.antecedenciaDias=6; s._migs.antec6=true; }
+  if(!s._migs.antec60){ s.config.antecedenciaDias=60; s._migs.antec60=true; }
+  if(!s._migs.ivanorSemCC){
+    const iv=s.colaboradores.find(c=>c.id==='ivanor'); if(iv) iv.fazCC=false;
+    Object.keys(s.escala||{}).forEach(wk=>{ const e=s.escala[wk] && s.escala[wk]['ivanor']; if(Array.isArray(e)) for(let i=0;i<7;i++) if(e[i]==='CC') e[i]='X'; });
+    s._migs.ivanorSemCC=true;
+  }
+  if(!Array.isArray(s.folgas)) s.folgas=[];
+  if(!s.folgaCells) s.folgaCells={};
+  if(!s.remanejoCells) s.remanejoCells={};
+  if(!Array.isArray(s.feriados)) s.feriados=[];
+  if(!s._migs.feriadosBR2026){
+    FERIADOS_PADRAO.forEach(f=>{ if(!s.feriados.some(x=>x.dataISO===f.dataISO)) s.feriados.push(deepClone(f)); });
+    s._migs.feriadosBR2026=true;
+  }
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(LSKEY);
+    if(raw){const s=JSON.parse(raw); if(s&&s.colaboradores&&s.escala){ if(!Array.isArray(s.semanas)||!s.semanas.length) s.semanas=deepClone(SEMANAS_PADRAO); migrar(s); return s; }}
+  }catch(e){}
+  return defaultState();
+}
+function save(){ try{localStorage.setItem(LSKEY, JSON.stringify(state));}catch(e){} }
+
+function getEntry(weekId, colabId){
+  const w = state.escala[weekId] || (state.escala[weekId]={});
+  let e = w[colabId];
+  if(!e){ e = w[colabId] = ['','','','','','','']; }
+  return e;
+}
+function isSpan(e){ return e && !Array.isArray(e) && e.span; }
+function diasOf(e){ return Array.isArray(e)? e : ['','','','','','','']; }
+
+/* ============== RENDER ESCALA ============== */
+function weekendClass(colab, e){
+  if(colab.periodo!=='manha' && colab.periodo!=='tarde') return '';
+  if(isSpan(e)) return '';
+  const d = diasOf(e);
+  if(d[6] && d[6].trim()) return 'dom';
+  if(d[5] && d[5].trim()) return 'sab';
+  return '';
+}
+function cellHTML(val){
+  if(!val) return '';
+  if(val==='CC') return '<span class="mk mk-x">✓</span><span class="mk mk-cc">CC</span>';
+  if(val==='X') return '<span class="mk mk-x">✓</span>';
+  return '<span class="mk-txt">'+val+'</span>'; // texto livre
+}
+function feriadosDaSemana(startISO){
+  const map={}; const start=new Date(startISO+'T00:00:00');
+  (state.feriados||[]).forEach(f=>{ const diff=Math.round((new Date(f.dataISO+'T00:00:00')-start)/86400000); if(diff>=0&&diff<=6) map[diff]=f.nome||'Feriado'; });
+  return map;
+}
+function renderEscala(){
+  const wk = weekInfo(state.semanas[curWeek]);
+  const fer = feriadosDaSemana(wk.startISO);
+  let html = '<div class="card"><div class="week-bar">'+wk.label+'</div>';
+  html += '<table class="escala"><thead><tr>';
+  html += '<th class="col-h">Horário</th><th class="col-n">Técnico</th>';
+  DIAS.forEach((d,i)=>{
+    const cls = i===5?'col-sab':(i===6?'col-dom':'');
+    const fh = fer[i]!==undefined ? '<span class="feriado-hdr" title="'+fer[i]+'">FERIADO</span>' : '';
+    html += '<th class="'+cls+'">'+d+'<span class="dnum">'+wk.dm[i]+'</span>'+fh+'</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  const totals = [0,0,0,0,0,0,0];
+  let lastP = null;
+  state.colaboradores.forEach(c=>{
+    const e = getEntry(wk.id, c.id);
+    const horario = (isSpan(e)&&e.horario)? e.horario : c.horario;
+    const wc = weekendClass(c,e);
+    if(lastP!==null && c.periodo!==lastP){ html += '<tr class="sep"><td colspan="9"></td></tr>'; }
+    lastP = c.periodo;
+    html += '<tr class="'+c.periodo+'">';
+    html += '<td class="hora">'+horario+'</td>';
+    html += '<td class="nome '+wc+'">'+c.nome+'</td>';
+    if(isSpan(e)){
+      html += '<td class="span" colspan="7">'+e.span+'</td>';
+    }else{
+      const d = diasOf(e);
+      for(let i=0;i<7;i++){
+        const cls = i===5?'col-sab':(i===6?'col-dom':'');
+        if(d[i] && d[i].trim()) totals[i]++;
+        let extra='';
+        const tId = (state.trocaCells||{})[wk.id+'|'+c.id+'|'+i];
+        if(tId){
+          const t = state.trocas.find(x=>x.id===tId);
+          const outro = t ? (c.id===t.deId ? t.paraId : t.deId) : null;
+          const nm = outro ? nomeColab(outro).split(' ')[0] : '';
+          extra += '<div class="obs-troca" title="Troca de plantão aprovada pelo gestor">🔄 troca'+(nm?' c/ '+nm:'')+'</div>';
+        }
+        if((state.folgaCells||{})[wk.id+'|'+c.id+'|'+i]) extra += '<div class="obs-folga" title="Folga solicitada (exceção registrada pela gestão)">📌 folga</div>';
+        if((state.remanejoCells||{})[wk.id+'|'+c.id+'|'+i]) extra += '<div class="obs-remanejo" title="Plantão remanejado por causa de uma folga solicitada">↪ remanejado</div>';
+        if(d[i] && d[i].trim() && fer[i]!==undefined) extra += '<div class="obs-feriado" title="'+fer[i]+'">FERIADO</div>';
+        html += '<td class="cell '+cls+'" data-colab="'+c.id+'" data-day="'+i+'">'+cellHTML(d[i])+extra+'</td>';
+      }
+    }
+    html += '</tr>';
+  });
+  // rodapé de cobertura
+  html += '<tr class="sep"><td colspan="9"></td></tr>';
+  html += '<tr class="foot"><td colspan="2">Total no dia</td>';
+  for(let i=0;i<7;i++){ const cls=i===5?'col-sab':(i===6?'col-dom':''); html+='<td class="'+cls+'">'+totals[i]+'</td>'; }
+  html += '</tr>';
+  html += '</tbody></table></div>';
+  html += renderAvisos(curWeek);
+  document.getElementById('escalaWrap').innerHTML = html;
+  renderEscalaInbox();
+
+  if(editing){
+    document.querySelectorAll('#escalaWrap td.cell').forEach(td=>{
+      td.addEventListener('click', onCellClick);
+      td.addEventListener('dblclick', onCellDbl);
+    });
+  }
+}
+function onCellClick(ev){
+  if(!editing) return;
+  const td = ev.currentTarget;
+  const cid = td.dataset.colab, day = +td.dataset.day;
+  const e = getEntry(state.semanas[curWeek].id, cid);
+  if(isSpan(e)) return;
+  const colab = state.colaboradores.find(x=>x.id===cid);
+  const podeCC = !colab || colab.fazCC!==false;
+  const cur = e[day];
+  let next;
+  if(cur==='' ) next='X'; else if(cur==='X') next=(podeCC?'CC':''); else if(cur==='CC') next=''; else next=''; // texto livre -> limpa
+  e[day]=next;
+  save(); renderEscala();
+}
+function onCellDbl(ev){
+  if(!editing) return;
+  ev.preventDefault();
+  const td = ev.currentTarget;
+  const cid = td.dataset.colab, day = +td.dataset.day;
+  const e = getEntry(state.semanas[curWeek].id, cid);
+  if(isSpan(e)) return;
+  const txt = prompt('Texto da célula (deixe vazio para folga). Ex.: X, X 7h-19h, Férias, Atestado', e[day]||'');
+  if(txt===null) return;
+  e[day]=txt.trim();
+  save(); renderEscala();
+}
+
+/* ============== MINHA ESCALA ============== */
+function renderMeSelect(){
+  const sel = document.getElementById('meSel');
+  const cur = sel.value;
+  sel.innerHTML = state.colaboradores.map(c=>'<option value="'+c.id+'">'+c.nome+'</option>').join('');
+  if(cur) sel.value=cur;
+}
+function renderMinha(){
+  if(ehColab()){ const m=document.getElementById('meSel'); if(m) m.value=sessao.colabId; }
+  const cid = document.getElementById('meSel').value;
+  const c = state.colaboradores.find(x=>x.id===cid);
+  const wrap = document.getElementById('minhaWrap');
+  if(!c){ wrap.innerHTML='<p>Selecione um colaborador.</p>'; return; }
+
+  let totWork=0, totCC=0, totOff=0, totWknd=0;
+  let blocks='';
+  state.semanas.forEach(sw=>{
+    const wk = weekInfo(sw);
+    const e = getEntry(wk.id, c.id);
+    blocks += '<div class="wk-block"><h3>'+wk.label+'</h3><div class="minha-grid">';
+    if(isSpan(e)){
+      blocks += '<div class="day-row"><div class="dlabel">Semana inteira</div><span class="badge b-wknd">'+e.span+'</span></div>';
+    }else{
+      const d = diasOf(e);
+      for(let i=0;i<7;i++){
+        const val=d[i];
+        let badge;
+        if(!val){ badge='<span class="badge b-off">Folga</span>'; totOff++; }
+        else if(val==='CC'){ badge='<span class="badge b-work">Plantão</span> <span class="badge b-cc">Centro Cirúrgico (CC)</span>'; totCC++; totWork++; }
+        else { badge='<span class="badge b-work">'+(val==='X'?'Plantão':val)+'</span>'; totWork++; }
+        if(val && (i===5||i===6)) totWknd++;
+        const isWknd = (i===5||i===6);
+        blocks += '<div class="day-row" style="'+(isWknd?'background:#f6f3fb':'')+'"><div class="dlabel">'+DIAS[i]+'<small>'+wk.dm[i]+' · '+((isSpan(e)&&e.horario)?e.horario:c.horario)+'</small></div>'+badge+'</div>';
+      }
+    }
+    blocks += '</div></div>';
+  });
+
+  // Painel de sugestões / avisos do colaborador
+  const recebidas = state.trocas.filter(t=>t.paraId===c.id && t.status==='aguardando_colega').length;
+  const aguardGestor = state.trocas.filter(t=>t.deId===c.id && t.status==='aguardando_gestor').length;
+  let painel = '<div class="colab-painel"><h2>Olá, '+c.nome.split(' ')[0]+'! 👋</h2>';
+  painel += '<div style="color:#7a8893;font-size:13px">Período: '+PERIODOS[c.periodo].nome+' · Horário padrão: '+c.horario+'</div>';
+  if(recebidas) painel += '<div class="colab-alerta">🔔 Você tem '+recebidas+' solicitação(ões) de troca aguardando o seu aceite. Abra a aba 🔄 Trocas.</div>';
+  if(aguardGestor) painel += '<div class="colab-dica">⏳ '+aguardGestor+' troca sua aguardando autorização do gestor.</div>';
+  painel += '<div class="colab-dica">💡 Dica: confira sua escala abaixo. Para trocar um plantão, use a aba <b>🔄 Trocas</b> e combine com um colega — depois o gestor autoriza.</div>';
+  const folgasPend = (state.folgas||[]).filter(f=>f.colabId===c.id && f.status==='pendente').length;
+  const folgasAprov = (state.folgas||[]).filter(f=>f.colabId===c.id && f.status==='aprovada').length;
+  if(folgasPend) painel += '<div class="colab-dica">🏖️ '+folgasPend+' pedido(s) de folga aguardando aprovação da gestora.</div>';
+  if(folgasAprov) painel += '<div class="colab-dica">✅ '+folgasAprov+' folga(s) de fim de semana já aprovada(s).</div>';
+  painel += '<div class="acoes">';
+  painel += '<button class="btn primary" onclick="setTab(\'troca\')">🔄 Solicitar / ver trocas</button>';
+  painel += '<button class="btn" onclick="abrirFolga()">🏖️ Pedir folga (fim de semana)</button>';
+  painel += '<button class="btn" onclick="setTab(\'escala\')">📅 Ver escala geral</button>';
+  painel += '<button class="btn" onclick="window.print()">🖨️ Imprimir minha escala</button>';
+  painel += '</div></div>';
+
+  let html = painel;
+  html += '<div class="card" style="padding:16px 18px"><div style="font-size:20px;font-weight:800;color:var(--verde-d)">'+c.nome+'</div>';
+  html += '<div style="color:#7a8893;margin-top:2px">Período: '+PERIODOS[c.periodo].nome+' · Horário padrão: '+c.horario+'</div></div>';
+  html += '<div class="stats">';
+  html += '<div class="stat"><div class="n">'+totWork+'</div><div class="l">Plantões</div></div>';
+  html += '<div class="stat"><div class="n">'+totCC+'</div><div class="l">No Centro Cirúrgico</div></div>';
+  html += '<div class="stat"><div class="n">'+totWknd+'</div><div class="l">Fins de semana</div></div>';
+  html += '<div class="stat"><div class="n">'+totOff+'</div><div class="l">Folgas</div></div>';
+  html += '</div>';
+  html += blocks;
+  wrap.innerHTML = html;
+}
+
+/* ============== COLABORADORES ============== */
+function renderAddForm(){
+  document.getElementById('addFormWrap').innerHTML = editing ? (
+    '<div class="addform">'+
+    '<div class="fld"><label>Nome</label><input type="text" id="newNome" placeholder="Nome do colaborador"></div>'+
+    '<div class="fld"><label>Horário</label><input type="text" id="newHorario" placeholder="ex.: 7h-13h" style="width:120px"></div>'+
+    '<div class="fld"><label>Período</label><select id="newPeriodo"><option value="manha">Manhã</option><option value="tarde">Tarde</option><option value="especial">Especial</option><option value="noite">Noite</option></select></div>'+
+    '<div class="fld"><label>Faz CC?</label><label style="font-weight:600;display:flex;align-items:center;gap:6px;height:38px"><input type="checkbox" id="newFazCC" checked> Centro Cirúrgico</label></div>'+
+    '<button class="btn primary" id="btnAddColab">+ Adicionar</button>'+
+    '</div>'
+  ) : '<p class="hint">🔒 Ative o <b>Modo Gestor</b> para adicionar, editar ou remover colaboradores.</p>';
+  const b=document.getElementById('btnAddColab'); if(b) b.addEventListener('click', addColab);
+}
+function renderColab(){
+  renderAddForm();
+  let html='<table class="colab"><thead><tr><th>Nome</th><th>Horário</th><th>Período</th><th>Faz CC?</th>'+(editing?'<th style="width:90px">Ações</th>':'')+'</tr></thead><tbody>';
+  state.colaboradores.forEach(c=>{
+    const fazCC = c.fazCC!==false;
+    const ccCel = editing
+      ? '<button class="btn mini '+(fazCC?'ok':'no')+'" data-act="cc">'+(fazCC?'✓ Sim':'✗ Não')+'</button>'
+      : (fazCC?'<span class="pill p-tarde">Sim</span>':'<span class="pill" style="background:#fde2dc;color:#c0392b">Não</span>');
+    html+='<tr data-id="'+c.id+'"><td><b>'+c.nome+'</b></td><td>'+c.horario+'</td><td><span class="pill p-'+c.periodo+'">'+PERIODOS[c.periodo].nome+'</span></td><td>'+ccCel+'</td>';
+    if(editing){
+      html+='<td><button class="iconbtn" data-act="edit" title="Editar">✏️</button><button class="iconbtn" data-act="del" title="Remover">🗑️</button></td>';
+    }
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+  // ---- Gestores ----
+  html+='<h2 style="font-size:18px;margin:22px 0 10px">🛡️ Gestores</h2>';
+  if(editing){
+    html+='<div class="addform"><div class="fld"><label>Nome do gestor</label><input type="text" id="newGestor" placeholder="Nome"></div><button class="btn primary" id="btnAddGestor">+ Adicionar gestor</button></div>';
+  }
+  html+='<table class="colab"><thead><tr><th>Nome</th>'+(editing?'<th style="width:90px">Ações</th>':'')+'</tr></thead><tbody>';
+  (state.gestores||[]).forEach(g=>{
+    html+='<tr data-gid="'+g.id+'"><td><b>'+g.nome+'</b></td>'+(editing?'<td><button class="iconbtn" data-gact="del" title="Remover">🗑️</button></td>':'')+'</tr>';
+  });
+  html+='</tbody></table>';
+  // ---- Feriados ----
+  html+='<h2 style="font-size:18px;margin:22px 0 10px">📅 Feriados</h2>';
+  html+='<p class="hint" style="margin-top:0">Datas de feriado entram na grade com o aviso <b style="color:#c0392b">FERIADO</b> e no <b>rodízio de feriados</b> das próximas escalas geradas.</p>';
+  if(editing){
+    html+='<div class="addform"><div class="fld"><label>Data</label><input type="date" id="newFeriadoData"></div><div class="fld"><label>Nome (opcional)</label><input type="text" id="newFeriadoNome" placeholder="ex.: Natal"></div><button class="btn primary" id="btnAddFeriado">+ Adicionar feriado</button></div>';
+  }
+  html+='<table class="colab"><thead><tr><th>Data</th><th>Nome</th>'+(editing?'<th style="width:90px">Ações</th>':'')+'</tr></thead><tbody>';
+  (state.feriados||[]).slice().sort((a,b)=>a.dataISO<b.dataISO?-1:1).forEach(f=>{
+    html+='<tr data-fid="'+f.dataISO+'"><td><b>'+f.dataISO.split('-').reverse().join('/')+'</b></td><td>'+(f.nome||'—')+'</td>'+(editing?'<td><button class="iconbtn" data-fact="del" title="Remover">🗑️</button></td>':'')+'</tr>';
+  });
+  html+='</tbody></table>';
+  document.getElementById('colabWrap').innerHTML=html;
+  if(editing){
+    document.querySelectorAll('#colabWrap .iconbtn[data-act]').forEach(b=>{
+      b.addEventListener('click',()=>{
+        const tr=b.closest('tr'); const id=tr.dataset.id;
+        if(b.dataset.act==='del') delColab(id); else editColab(id);
+      });
+    });
+    document.querySelectorAll('#colabWrap [data-act="cc"]').forEach(b=>{
+      b.addEventListener('click',()=> toggleCC(b.closest('tr').dataset.id));
+    });
+    const ag=document.getElementById('btnAddGestor'); if(ag) ag.addEventListener('click', addGestor);
+    const af=document.getElementById('btnAddFeriado'); if(af) af.addEventListener('click', addFeriado);
+    document.querySelectorAll('#colabWrap .iconbtn[data-fact]').forEach(b=>{
+      b.addEventListener('click',()=>{ delFeriado(b.closest('tr').dataset.fid); });
+    });
+    document.querySelectorAll('#colabWrap .iconbtn[data-gact]').forEach(b=>{
+      b.addEventListener('click',()=>{ delGestor(b.closest('tr').dataset.gid); });
+    });
+  }
+}
+function toggleCC(id){ const c=state.colaboradores.find(x=>x.id===id); if(!c)return; c.fazCC=(c.fazCC===false); save(); renderColab(); }
+function addFeriado(){
+  const data=document.getElementById('newFeriadoData').value;
+  const nome=(document.getElementById('newFeriadoNome').value||'').trim();
+  if(!data){ alert('Selecione a data do feriado.'); return; }
+  if(!state.feriados) state.feriados=[];
+  if(state.feriados.some(f=>f.dataISO===data)){ alert('Esse feriado já está cadastrado.'); return; }
+  state.feriados.push({dataISO:data, nome});
+  save(); renderColab(); renderEscala();
+}
+function delFeriado(dataISO){
+  const f=(state.feriados||[]).find(x=>x.dataISO===dataISO); if(!f)return;
+  if(!confirm('Remover o feriado '+dataISO.split('-').reverse().join('/')+'?'))return;
+  state.feriados=state.feriados.filter(x=>x.dataISO!==dataISO);
+  save(); renderColab(); renderEscala();
+}
+function addGestor(){
+  const nome=(document.getElementById('newGestor').value||'').trim();
+  if(!nome){alert('Informe o nome do gestor.');return;}
+  let id=slug(nome); let n=1; while((state.gestores||[]).some(g=>g.id===id)){id=slug(nome)+(++n);}
+  if(!state.gestores) state.gestores=[];
+  state.gestores.push({id, nome:nome.toUpperCase()});
+  save(); renderColab();
+}
+function delGestor(id){
+  const g=(state.gestores||[]).find(x=>x.id===id); if(!g)return;
+  if(!confirm('Remover o gestor "'+g.nome+'"?'))return;
+  state.gestores=state.gestores.filter(x=>x.id!==id);
+  save(); renderColab();
+}
+function slug(s){return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'')||('c'+Math.floor(performance.now()));}
+function addColab(){
+  const nome=document.getElementById('newNome').value.trim();
+  const horario=document.getElementById('newHorario').value.trim()||'—';
+  const periodo=document.getElementById('newPeriodo').value;
+  if(!nome){alert('Informe o nome.');return;}
+  let id=slug(nome); let n=1; while(state.colaboradores.some(c=>c.id===id)){id=slug(nome)+(++n);}
+  const fazCC=document.getElementById('newFazCC').checked;
+  state.colaboradores.push({id,nome:nome.toUpperCase(),horario,periodo,fazCC});
+  state.semanas.forEach(sw=>{ if(!state.escala[sw.id]) state.escala[sw.id]={}; state.escala[sw.id][id]=['','','','','','','']; });
+  save(); renderColab(); renderMeSelect();
+}
+function editColab(id){
+  const c=state.colaboradores.find(x=>x.id===id); if(!c)return;
+  const nome=prompt('Nome:',c.nome); if(nome===null)return;
+  const horario=prompt('Horário:',c.horario); if(horario===null)return;
+  const periodo=prompt('Período (manha / tarde / especial / noite):',c.periodo);
+  if(periodo===null)return;
+  const fazCCResp=prompt('Faz Centro Cirúrgico? (S = Sim  /  N = Não):', c.fazCC!==false?'S':'N');
+  if(fazCCResp===null)return;
+  c.nome=nome.trim().toUpperCase(); c.horario=horario.trim();
+  if(['manha','tarde','especial','noite'].includes(periodo.trim())) c.periodo=periodo.trim();
+  c.fazCC = fazCCResp.trim().toUpperCase()!=='N';
+  save(); renderColab(); renderMeSelect(); renderEscala();
+}
+function delColab(id){
+  const c=state.colaboradores.find(x=>x.id===id); if(!c)return;
+  if(!confirm('Remover "'+c.nome+'" e seus plantões?'))return;
+  state.colaboradores=state.colaboradores.filter(x=>x.id!==id);
+  state.semanas.forEach(sw=>{ if(state.escala[sw.id]) delete state.escala[sw.id][id]; });
+  save(); renderColab(); renderMeSelect(); renderEscala();
+}
+
+/* ============== TABS / CONTROLES ============== */
+function setTab(name){
+  if(name==='colab' && ehColab()) name='minha';   // colaborador não acessa cadastro
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  ['escala','minha','colab','troca','guia'].forEach(n=>{
+    document.getElementById('tab-'+n).style.display = n===name?'':'none';
+  });
+  if(name==='minha') renderMinha();
+  if(name==='colab') renderColab();
+  if(name==='troca') renderTrocas();
+}
+function setEditing(v){
+  editing=v;
+  document.body.classList.toggle('editing',v);
+  const b=document.getElementById('btnEdit');
+  b.classList.toggle('on',v);
+  b.textContent = v?'🔒 Gestor (editando)':'🔓 Modo Gestor';
+  document.getElementById('editHint').style.display = v?'':'none';
+  renderEscala(); renderColab();
+  if(document.getElementById('tab-troca').style.display!=='none') renderTrocas();
+  refreshInbox();
+}
+function fillWeekSel(){
+  const sel=document.getElementById('weekSel');
+  if(curWeek>=state.semanas.length) curWeek=state.semanas.length-1;
+  if(curWeek<0) curWeek=0;
+  sel.innerHTML=state.semanas.map((w,i)=>'<option value="'+i+'">'+weekInfo(w).label+'</option>').join('');
+  sel.value=curWeek;
+}
+
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>setTab(t.dataset.tab)));
+document.getElementById('btnEdit').addEventListener('click',()=>setEditing(!editing));
+document.getElementById('weekSel').addEventListener('change',e=>{curWeek=+e.target.value;renderEscala();});
+document.getElementById('prevWeek').addEventListener('click',()=>{if(curWeek>0){curWeek--;fillWeekSel();renderEscala();}});
+document.getElementById('nextWeek').addEventListener('click',()=>{if(curWeek<state.semanas.length-1){curWeek++;fillWeekSel();renderEscala();}});
+
+function nextStartISO(){
+  const last = state.semanas[state.semanas.length-1];
+  const base = last ? last.startISO : '2026-06-08';
+  const d = new Date(base+'T00:00:00'); d.setDate(d.getDate()+7);
+  return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+}
+function blankWeekData(){ const o={}; state.colaboradores.forEach(c=>{o[c.id]=['','','','','','','']; }); return o; }
+function addWeek(copyAtual){
+  const id = 'w'+Date.now();
+  const iso = nextStartISO();
+  if(copyAtual && state.semanas.length){
+    const cur = state.semanas[curWeek];
+    state.escala[id] = deepClone(state.escala[cur.id] || {});
+    state.colaboradores.forEach(c=>{ if(!state.escala[id][c.id]) state.escala[id][c.id]=['','','','','','','']; });
+  } else {
+    state.escala[id] = blankWeekData();
+  }
+  state.semanas.push({id, startISO:iso});
+  curWeek = state.semanas.length-1;
+  save(); fillWeekSel(); renderEscala();
+}
+function removeWeek(){
+  if(state.semanas.length<=1){ alert('Deve existir pelo menos uma semana.'); return; }
+  const sw = state.semanas[curWeek];
+  if(!confirm('Remover a "'+weekInfo(sw).label+'"? Os plantões dessa semana serão apagados.')) return;
+  delete state.escala[sw.id];
+  state.semanas.splice(curWeek,1);
+  if(curWeek>=state.semanas.length) curWeek=state.semanas.length-1;
+  save(); fillWeekSel(); renderEscala();
+}
+document.getElementById('btnNewWeek').addEventListener('click',()=>addWeek(false));
+document.getElementById('btnDupWeek').addEventListener('click',()=>addWeek(true));
+document.getElementById('btnDelWeek').addEventListener('click',removeWeek);
+const genModal=document.getElementById('genModal');
+function atualizaGenInfo(){
+  const q=Math.max(1,parseInt(document.getElementById('genQtd').value)||1);
+  const u=document.getElementById('genUni').value;
+  const n=semanasParaGerar(q,u);
+  const base=new Date(nextStartISO()+'T00:00:00');
+  const last=new Date(base); last.setDate(last.getDate()+7*(n-1));
+  const ini=weekInfo({startISO:isoOf(base)}).label.replace('Semana ','');
+  const fim=weekInfo({startISO:isoOf(last)}).label.replace('Semana ','');
+  document.getElementById('genInfo').textContent='➜ '+n+' semana'+(n>1?'s':'')+': '+(n>1? (ini+'  até  '+fim) : ini);
+}
+function abrirGen(){ atualizaGenInfo(); genModal.style.display='flex'; }
+function fecharGen(){ genModal.style.display='none'; }
+document.getElementById('btnAutoWeek').addEventListener('click',abrirGen);
+document.getElementById('genCancel').addEventListener('click',fecharGen);
+document.getElementById('genOk').addEventListener('click',()=>{
+  const q=Math.max(1,parseInt(document.getElementById('genQtd').value)||1);
+  const u=document.getElementById('genUni').value;
+  const n=semanasParaGerar(q,u);
+  fecharGen();
+  gerarVarias(n);
+});
+document.getElementById('genQtd').addEventListener('input',atualizaGenInfo);
+document.getElementById('genUni').addEventListener('change',atualizaGenInfo);
+document.querySelectorAll('#genModal .chip').forEach(b=>b.addEventListener('click',()=>{
+  document.getElementById('genQtd').value=b.dataset.q;
+  document.getElementById('genUni').value=b.dataset.u;
+  atualizaGenInfo();
+}));
+genModal.addEventListener('click',e=>{ if(e.target===genModal) fecharGen(); });
+// Trocas
+document.getElementById('btnNovaTroca').addEventListener('click',abrirTroca);
+document.getElementById('tkCancel').addEventListener('click',fecharTroca);
+document.getElementById('tkOk').addEventListener('click',enviarTroca);
+document.getElementById('tkSemana').addEventListener('change',atualizaTrocaDias);
+document.getElementById('tkPara').addEventListener('change',atualizaTrocaDias);
+document.getElementById('tkDiaA').addEventListener('change',atualizaTkInfo);
+document.getElementById('tkDiaB').addEventListener('change',atualizaTkInfo);
+document.getElementById('euSel').addEventListener('change',renderTrocas);
+document.getElementById('btnInbox').addEventListener('click',()=>setTab('troca'));
+document.getElementById('trocaModal').addEventListener('click',e=>{ if(e.target.id==='trocaModal') fecharTroca(); });
+document.getElementById('btnPrint').addEventListener('click',()=>window.print());
+document.getElementById('btnPrintMe').addEventListener('click',()=>window.print());
+document.getElementById('meSel').addEventListener('change',renderMinha);
+
+// Backup
+document.getElementById('btnExport').addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='escala-hospital-backup.json'; a.click();
+});
+document.getElementById('btnImport').addEventListener('click',()=>document.getElementById('fileImport').click());
+document.getElementById('fileImport').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{const s=JSON.parse(r.result); if(s.colaboradores&&s.escala){if(!Array.isArray(s.semanas)||!s.semanas.length)s.semanas=deepClone(SEMANAS_PADRAO);migrar(s);state=s;curWeek=0;save();fillWeekSel();renderMeSelect();fillEuSel();renderEscala();renderColab();refreshInbox();alert('Backup importado!');}else alert('Arquivo inválido.');}catch(err){alert('Erro ao ler arquivo.');}};
+  r.readAsText(f);
+});
+document.getElementById('btnReset').addEventListener('click',()=>{
+  if(confirm('Restaurar a escala original de Junho? Suas alterações serão perdidas.')){
+    state=defaultState(); save(); fillWeekSel(); renderMeSelect(); fillEuSel(); renderEscala(); renderColab(); refreshInbox();
+  }
+});
+
+/* ============== MOTOR DE GERAÇÃO / REGRAS ============== */
+const CORINGAS = ['gabriel','anamaria'];
+function tipoDe(c){
+  if(CORINGAS.includes(c.id)) return 'coringa';
+  if(c.id==='pedro') return 'pedro';
+  if(c.id==='abraao') return 'flex';
+  if(c.periodo==='noite') return 'noite';
+  if(c.periodo==='manha') return 'dia-manha';
+  if(c.periodo==='tarde') return 'dia-tarde';
+  return 'flex';
+}
+// horas de um plantão conforme tipo/dia
+function shiftHours(c,i,val){
+  if(!val) return 0;
+  const t=tipoDe(c);
+  if(/7h\s*-\s*19h/i.test(val)) return 12;      // compensação noturna (12h diurnas)
+  if(val==='X'||val==='CC'){
+    if(t==='pedro') return 4.8;                  // 18h-22:48h
+    if(i>=5) return 12;                          // sábado/domingo = 12h
+    if(t==='noite') return 12;                   // noturno dia útil = 12h
+    return 6;                                    // diurno dia útil = 6h
+  }
+  return 0;                                      // textos de evento (Férias, etc.)
+}
+function lastIdxWith(histList, colabId, pred){
+  for(let k=histList.length-1;k>=0;k--){
+    const e=histList[k] && histList[k][colabId];
+    if(Array.isArray(e) && pred(e)) return k;
+  }
+  return -1;
+}
+function pickByRecency(group, histList, n, pred){
+  const scored=group.map((c,idx)=>({c,idx,s:histList.length-lastIdxWith(histList,c.id,pred)}));
+  scored.sort((a,b)=> b.s-a.s || a.idx-b.idx);
+  return scored.slice(0,n).map(x=>x.c);
+}
+// Libera um dia e recoloca o(s) plantão(ões) para manter 24h. Retorna {rem:[dias], eraTrab}
+function remanejarDia(c, e, dia){
+  const tipo=tipoDe(c);
+  const eraTrab=!!(e[dia]&&e[dia].trim());
+  const rem=[];
+  e[dia]='';
+  if(eraTrab){
+    if(tipo==='dia-manha'||tipo==='dia-tarde'){
+      let faltam=(dia>=5?2:1);
+      for(let d=0; d<5 && faltam>0; d++){ if(d!==dia && !e[d]){ e[d]='X'; rem.push(d); faltam--; } }
+    } else if(tipo==='noite'){
+      const dd=[]; for(let i=0;i<7;i++) if(e[i]==='X') dd.push(i);
+      for(let d=0; d<7; d++){ if(d===dia||e[d]) continue; if(dd.every(x=>Math.abs(x-d)>=3)){ e[d]='X'; rem.push(d); break; } }
+    }
+  }
+  return {rem, eraTrab};
+}
+// histList: array de mapas {colabId:[7]} em ordem cronológica (semanas anteriores)
+// folgasMap: { colabId:[dias] } folgas garantidas (FDS) já aprovadas para esta semana
+function gerarSemana(colaboradores, histList, folgasMap){
+  folgasMap = folgasMap || {};
+  const out={};
+  colaboradores.forEach(c=>{ out[c.id]=['','','','','','','']; });
+  const byTipo=t=>colaboradores.filter(c=>tipoDe(c)===t);
+  const manha=byTipo('dia-manha'), tarde=byTipo('dia-tarde'), noite=byTipo('noite');
+  const pedro=colaboradores.find(c=>tipoDe(c)==='pedro');
+  const ehFDS=e=>!!(e[5]||e[6]);
+  const temCC=e=>e.includes('CC');
+  const temComp=e=>e.some(v=>/7h\s*-\s*19h/i.test(v));
+
+  // PEDRO: seg-sex
+  if(pedro){ for(let i=0;i<5;i++) out[pedro.id][i]='X'; }
+
+  // FIM DE SEMANA por justiça/recência — manhã cobre Sáb(1)+Dom(2), tarde cobre Dom(2)
+  const wkChosen=new Set();
+  function darFDS(group, dia, n){
+    n=n||1;
+    const cand=group.filter(c=>!wkChosen.has(c.id) && !((folgasMap[c.id]||[]).includes(dia)));
+    pickByRecency(cand, histList, n, ehFDS).forEach(c=>{ out[c.id][dia]='X'; wkChosen.add(c.id); });
+  }
+  darFDS(manha,5,1); darFDS(manha,6,1); darFDS(tarde,6,1); // Dom: 2 colaboradores 12h juntos (1 manhã + 1 tarde)
+
+  // DIAS ÚTEIS dos diurnos para fechar 24h, com folga de 3 dias antes do FDS
+  // e folga distribuída para cobrir todos os dias úteis (sem deixar dia vazio)
+  function preencheDia(group){
+    const semFDS=[];
+    group.forEach(c=>{
+      const fds = out[c.id][5]==='X' || out[c.id][6]==='X';
+      if(fds){ out[c.id][0]='X'; out[c.id][1]='X'; }   // 2 úteis (seg/ter) + FDS de 12h = 24h
+      else semFDS.push(c);                              // 4 úteis (1 folga rotativa)
+    });
+    semFDS.forEach((c,k)=>{
+      const folga=(k+histList.length)%5;                // espalha a folga entre seg..sex
+      for(let d=0;d<5;d++) if(d!==folga) out[c.id][d]='X';
+    });
+  }
+  preencheDia(manha); preencheDia(tarde);
+
+  // CC: 1 manhã + 1 tarde por dia útil (seg-sex)
+  function aplicaCC(group){
+    for(let d=0;d<5;d++){
+      const trab=group.filter(c=> c.fazCC!==false && out[c.id][d]==='X');
+      if(!trab.length) continue;
+      const c=pickByRecency(trab, histList, 1, temCC)[0];
+      if(c) out[c.id][d]='CC';
+    }
+  }
+  aplicaCC(manha); aplicaCC(tarde);
+
+  // NOITE: 2 plantões espaçados ≥72h (pares com 3 dias de intervalo), rodando por semana
+  const pares=[[0,3],[1,4],[2,5],[3,6]];
+  noite.forEach((c,j)=>{ pares[(j+histList.length)%pares.length].forEach(d=>{ out[c.id][d]='X'; }); });
+  // Sábado de compensação (1/mês por pessoa): escolhe quem está há mais tempo sem compensar
+  if(noite.length){
+    const comp=pickByRecency(noite, histList, 1, temComp)[0];
+    if(comp) out[comp.id][5]='X 7h-19h';
+  }
+  // Respeita as folgas garantidas (FDS) aprovadas: libera o dia e remaneja
+  colaboradores.forEach(c=>{
+    (folgasMap[c.id]||[]).forEach(dia=>{ if(out[c.id][dia]) remanejarDia(c, out[c.id], dia); });
+  });
+  return out;
+}
+// Validação de uma semana → lista de avisos
+function validarSemana(weekData, colaboradores){
+  const avisos=[];
+  colaboradores.forEach(c=>{
+    const t=tipoDe(c);
+    if(t==='coringa'||t==='flex') return;
+    const e=weekData[c.id];
+    if(!Array.isArray(e)) return;
+    let h=0; for(let i=0;i<7;i++) h+=shiftHours(c,i,e[i]);
+    const comp=e.some(v=>/7h\s*-\s*19h/i.test(v));
+    if(!comp && Math.abs(h-24)>0.05) avisos.push({tipo:'carga', txt:c.nome+': '+h.toFixed(1).replace('.0','')+'h na semana (esperado 24h)'});
+    if(t==='noite'){
+      const dias=[]; for(let i=0;i<7;i++) if(e[i]==='X') dias.push(i); // só plantões noturnos (ignora compensação 7h-19h)
+      for(let k=1;k<dias.length;k++){
+        if((dias[k]-dias[k-1])<3) avisos.push({tipo:'72h', txt:c.nome+': plantões noturnos a menos de 72h ('+DIAS_CURTO[dias[k-1]]+' e '+DIAS_CURTO[dias[k]]+')'});
+      }
+    }
+  });
+  // CC: cada dia útil deve ter 1 na manhã e 1 na tarde
+  const byTipo=t=>colaboradores.filter(c=>tipoDe(c)===t);
+  [['dia-manha','manhã'],['dia-tarde','tarde']].forEach(([tp,nome])=>{
+    const grupo=byTipo(tp);
+    for(let d=0;d<5;d++){
+      const temAlguem=grupo.some(c=>Array.isArray(weekData[c.id])&&weekData[c.id][d]);
+      const temCC=grupo.some(c=>Array.isArray(weekData[c.id])&&weekData[c.id][d]==='CC');
+      if(temAlguem && !temCC) avisos.push({tipo:'cc', txt:'Sem CC na '+nome+' em '+DIAS_CURTO[d]});
+    }
+  });
+  return avisos;
+}
+function histAntesDe(idx){
+  // dados das semanas anteriores ao índice, em ordem cronológica
+  return state.semanas.slice(0,idx).map(sw=>state.escala[sw.id]||{});
+}
+function renderAvisos(idx){
+  const wd=state.escala[state.semanas[idx].id]||{};
+  const av=validarSemana(wd, state.colaboradores);
+  if(!av.length) return '<div class="avisos ok">✅ Sem inconsistências nesta semana (regras de carga, 72h e CC OK).</div>';
+  return '<div class="avisos"><b>⚠️ Pontos para revisar ('+av.length+'):</b><ul>'+av.map(a=>'<li>'+a.txt+'</li>').join('')+'</ul></div>';
+}
+function isoOf(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+// quantas semanas (segundas) cabem em "qtd" meses a partir da próxima
+function semanasParaGerar(qtd, unidade){
+  if(unidade==='semanas') return Math.max(1, qtd);
+  const base=new Date(nextStartISO()+'T00:00:00');
+  const alvo=new Date(base); alvo.setMonth(alvo.getMonth()+qtd);
+  let n=0, d=new Date(base);
+  while(d < alvo){ n++; d.setDate(d.getDate()+7); }
+  return Math.max(1, n);
+}
+function folgasMapPorData(iso){
+  const start=new Date(iso+'T00:00:00'); const map={};
+  (state.folgas||[]).filter(f=>f.status==='aprovada').forEach(f=>{
+    const diff=Math.round((new Date(f.dataISO+'T00:00:00')-start)/86400000);
+    if(diff>=0 && diff<=6){ (map[f.colabId]=map[f.colabId]||[]).push(diff); }
+  });
+  return map;
+}
+// Quem trabalhou cada feriado (último por colaborador) no histórico já existente
+function computeHolidayLast(){
+  const map={};
+  (state.feriados||[]).forEach(f=>{
+    const fdate=new Date(f.dataISO+'T00:00:00');
+    state.semanas.forEach(sw=>{
+      const diff=Math.round((fdate-new Date(sw.startISO+'T00:00:00'))/86400000);
+      if(diff>=0&&diff<=6){
+        const wk=state.escala[sw.id]||{};
+        Object.keys(wk).forEach(cid=>{ const e=wk[cid]; if(Array.isArray(e)&&e[diff]&&e[diff].trim()){ if(!map[cid]||f.dataISO>map[cid]) map[cid]=f.dataISO; } });
+      }
+    });
+  });
+  return map;
+}
+// Rodízio feriados: 2 por turno (manhã+tarde) em dias úteis e Dom feriado;
+// Sáb feriado=2 manhã fazendo 12h; Dom sem feriado já vem com 2+2 do darFDS;
+// Noturno segue escala natural em qualquer caso.
+function aplicarRodizioFeriados(out, iso, holidayLast, fmap){
+  const start=new Date(iso+'T00:00:00');
+  const fer=(state.feriados||[]).map(f=>{ const diff=Math.round((new Date(f.dataISO+'T00:00:00')-start)/86400000); return (diff>=0&&diff<=6)?{dia:diff,dataISO:f.dataISO}:null; }).filter(Boolean);
+  fer.forEach(fr=>{
+    const {dia, dataISO}=fr;
+    if(dia===6){
+      // Domingo feriado: 2+2 já garantidos pelo darFDS — só registra feriado no histórico
+      ['dia-manha','dia-tarde'].forEach(tp=>{
+        state.colaboradores.filter(c=>tipoDe(c)===tp && Array.isArray(out[c.id]) && out[c.id][dia])
+          .forEach(c=>{ holidayLast[c.id]=dataISO; });
+      });
+      return;
+    }
+    if(dia===5){
+      // Sábado feriado: 1 manhã (já do darFDS) + 1 tarde por rodízio — ambos 12h juntos
+      // Manhã: já escalado pelo darFDS — registra histórico de feriado
+      state.colaboradores.filter(c=>tipoDe(c)==='dia-manha' && !!out[c.id][dia])
+        .forEach(c=>{ if(!holidayLast[c.id]||dataISO>holidayLast[c.id]) holidayLast[c.id]=dataISO; });
+      // Tarde: adiciona 1 por rodízio (sem conflito com domingo)
+      const jaTardeSab=state.colaboradores.filter(c=>tipoDe(c)==='dia-tarde' && !!out[c.id][dia]);
+      if(!jaTardeSab.length){
+        const sorted=state.colaboradores
+          .filter(c=>tipoDe(c)==='dia-tarde' && !out[c.id][dia] && !out[c.id][6] && !((fmap[c.id]||[]).includes(dia)))
+          .sort((a,b)=>{ const la=holidayLast[a.id]||'', lb=holidayLast[b.id]||''; return la<lb?-1:la>lb?1:0; });
+        const worker=sorted[0];
+        if(worker){
+          out[worker.id][dia]='X';
+          // Ajusta 24h: 12h(sáb) + 2×6h úteis = 24h → mantém só 2 dias úteis
+          let cnt=0; for(let d=0;d<5;d++){ if(out[worker.id][d]){ cnt<2?cnt++:(out[worker.id][d]=''); } }
+          holidayLast[worker.id]=dataISO;
+        }
+      } else {
+        jaTardeSab.forEach(c=>{ if(!holidayLast[c.id]||dataISO>holidayLast[c.id]) holidayLast[c.id]=dataISO; });
+      }
+      return;
+    }
+    // Dias úteis (0-4): 2 por turno manhã + tarde por rodízio de feriado
+    ['dia-manha','dia-tarde'].forEach(tp=>{
+      const grupo=state.colaboradores.filter(c=>tipoDe(c)===tp && !((fmap[c.id]||[]).includes(dia)));
+      if(!grupo.length) return;
+      const sorted=grupo.slice().sort((a,b)=>{ const la=holidayLast[a.id]||'', lb=holidayLast[b.id]||''; return la<lb?-1:la>lb?1:0; });
+      const workers=sorted.slice(0,2);
+      grupo.forEach(c=>{
+        const e=out[c.id]; if(!Array.isArray(e)) return;
+        const eWorker=workers.some(w=>w.id===c.id);
+        if(eWorker){
+          if(!e[dia]){ for(let d=0;d<5;d++){ if(d!==dia&&e[d]){e[d]='';break;} } e[dia]='X'; }
+        } else if(e[dia]){ remanejarDia(c,e,dia); }
+      });
+      workers.forEach(w=>{ holidayLast[w.id]=dataISO; });
+    });
+  });
+}
+function gerarVarias(n){
+  const holidayLast = computeHolidayLast();
+  for(let k=0;k<n;k++){
+    const id='w'+Date.now()+'_'+k;
+    const iso=nextStartISO();
+    const fmap=folgasMapPorData(iso);
+    const out=gerarSemana(state.colaboradores, state.semanas.map(sw=>state.escala[sw.id]||{}), fmap);
+    aplicarRodizioFeriados(out, iso, holidayLast, fmap);
+    state.escala[id]=out;
+    state.semanas.push({id, startISO:iso});
+    Object.keys(fmap).forEach(cid=> fmap[cid].forEach(d=>{ state.folgaCells[id+'|'+cid+'|'+d]='folga'; }));
+  }
+  curWeek=state.semanas.length-1;
+  save(); fillWeekSel(); renderEscala();
+}
+
+/* ============== TROCAS DE PLANTÃO ============== */
+function nomeColab(id){ const c=state.colaboradores.find(x=>x.id===id); return c?c.nome:id; }
+function semanaLabel(id){ const sw=state.semanas.find(s=>s.id===id); return sw?weekInfo(sw).label.replace('Semana ',''):id; }
+function cellTexto(v){ return v==='CC'?'Centro Cirúrgico':(v==='X'?'plantão':v); }
+function diasTrabalhados(semanaId, colabId){
+  const e=state.escala[semanaId] && state.escala[semanaId][colabId];
+  const arr=[];
+  if(Array.isArray(e)) for(let i=0;i<7;i++) if(e[i] && e[i].trim()) arr.push({dia:i, val:e[i]});
+  return arr;
+}
+const ST = {
+  aguardando_colega:{t:'Aguardando aceite do colega', c:'#b8860b'},
+  recusada_colega:  {t:'Recusada pelo colega',         c:'#c0392b'},
+  aguardando_gestor:{t:'Aguardando autorização do gestor', c:'#b8860b'},
+  autorizada:       {t:'Autorizada ✓',                 c:'#177a3c'},
+  recusada_gestor:  {t:'Recusada pelo gestor',         c:'#c0392b'},
+};
+function descTroca(t){
+  return nomeColab(t.deId)+' passa o Dia de agenda oficial (<b>'+DIAS[t.diaA]+'</b>) e assume o Dia Trocado (<b>'+DIAS[t.diaB]+'</b>) de '+nomeColab(t.paraId)+' &middot; '+semanaLabel(t.semanaId);
+}
+function inboxCount(){ return state.trocas.filter(t=>t.status==='aguardando_gestor' && !t.lidaGestor).length + (state.folgas||[]).filter(f=>f.status==='pendente' && !f.lidaGestor).length; }
+function refreshInbox(){
+  const nG=inboxCount();
+  const ib=document.getElementById('inboxBadge'); if(ib){ ib.textContent=nG; ib.style.display=nG?'inline-flex':'none'; }
+  const tb=document.getElementById('tabTrocaBadge');
+  if(tb){
+    const n = ehColab() ? state.trocas.filter(t=>t.paraId===sessao.colabId && t.status==='aguardando_colega').length : nG;
+    tb.textContent=n; tb.style.display=n?'inline-flex':'none';
+  }
+  renderEscalaInbox();
+}
+function renderEscalaInbox(){
+  const wrap=document.getElementById('escalaInbox'); if(!wrap) return;
+  if(ehColab()){ wrap.innerHTML=''; return; }
+  const trocasPend=state.trocas.filter(t=>t.status==='aguardando_gestor');
+  const folgasPend=(state.folgas||[]).filter(f=>f.status==='pendente');
+  const total=trocasPend.length+folgasPend.length;
+  if(!total){ wrap.innerHTML=''; return; }
+  let h='<div class="inbox-panel">';
+  h+='<div class="inbox-hdr">📨 '+total+' solicitação'+(total>1?'ões':'')+' pendente'+(total>1?'s':'')+' de aprovação &nbsp;<span style="font-size:11px;font-weight:400;color:#7a8893">— clique em Autorizar/Aprovar ou vá em 🔄 Trocas/Exceções para detalhes</span></div>';
+  trocasPend.forEach(t=>{
+    h+='<div class="inbox-card'+(t.lidaGestor?'':' nova')+'">';
+    h+='<span class="inbox-tipo troca">TROCA</span> '+descTroca(t);
+    h+='<div class="inbox-ac"><button class="btn ok mini" onclick="autorizarTroca(\''+t.id+'\')">✓ Autorizar</button>';
+    h+='<button class="btn no mini" onclick="recusarGestor(\''+t.id+'\')">✗ Recusar</button></div></div>';
+  });
+  folgasPend.forEach(f=>{
+    h+='<div class="inbox-card'+(f.lidaGestor?'':' nova')+'">';
+    h+='<span class="inbox-tipo folga">FOLGA</span> <b>'+nomeColab(f.colabId)+'</b> — '+formatarDataBR(f.dataISO)+' ('+(f.dia===5?'Sábado':'Domingo')+')';
+    if(f.motivo) h+=' — <i style="color:#5c6b75">'+f.motivo+'</i>';
+    h+='<div class="inbox-ac"><button class="btn ok mini" onclick="aprovarFolga(\''+f.id+'\')">✓ Aprovar</button>';
+    h+='<button class="btn no mini" onclick="recusarFolga(\''+f.id+'\')">✗ Recusar</button></div></div>';
+  });
+  h+='</div>';
+  wrap.innerHTML=h;
+}
+function fillEuSel(){
+  const sel=document.getElementById('euSel'); if(!sel) return;
+  const cur=sel.value;
+  sel.innerHTML=state.colaboradores.map(c=>'<option value="'+c.id+'">'+c.nome+'</option>').join('');
+  if(cur) sel.value=cur;
+}
+// ---- modal nova troca ----
+const trocaModal=document.getElementById('trocaModal');
+function abrirTroca(){
+  const eu=document.getElementById('euSel').value;
+  if(!eu){ alert('Selecione quem é você.'); return; }
+  document.getElementById('tkSemana').innerHTML=state.semanas.map(s=>'<option value="'+s.id+'">'+weekInfo(s).label+'</option>').join('');
+  document.getElementById('tkPara').innerHTML=state.colaboradores.filter(c=>c.id!==eu).map(c=>'<option value="'+c.id+'">'+c.nome+'</option>').join('');
+  atualizaTrocaDias();
+  trocaModal.style.display='flex';
+}
+function fecharTroca(){ trocaModal.style.display='none'; }
+function atualizaTrocaDias(){
+  const eu=document.getElementById('euSel').value;
+  const sem=document.getElementById('tkSemana').value;
+  const para=document.getElementById('tkPara').value;
+  const opt=arr=>arr.length?arr.map(x=>'<option value="'+x.dia+'">'+DIAS[x.dia]+' — '+cellTexto(x.val)+'</option>').join(''):'<option value="">(sem plantões nesta semana)</option>';
+  const da=document.getElementById('tkDiaA'), db=document.getElementById('tkDiaB');
+  const pa=da.value, pb=db.value;                       // preserva seleção atual
+  da.innerHTML=opt(diasTrabalhados(sem,eu));
+  db.innerHTML=opt(diasTrabalhados(sem,para));
+  if([...da.options].some(o=>o.value===pa)) da.value=pa;
+  if([...db.options].some(o=>o.value===pb)) db.value=pb;
+  atualizaTkInfo();
+}
+function atualizaTkInfo(){
+  const para=document.getElementById('tkPara').value;
+  const da=document.getElementById('tkDiaA').value, db=document.getElementById('tkDiaB').value;
+  document.getElementById('tkInfo').innerHTML = (da!==''&&db!=='')
+    ? 'Você passa seu Dia de agenda oficial ('+DIAS_CURTO[+da]+') e assume o Dia Trocado ('+DIAS_CURTO[+db]+') de '+nomeColab(para)+'.'
+    : 'Selecione os dias.';
+}
+function enviarTroca(){
+  const eu=document.getElementById('euSel').value;
+  const sem=document.getElementById('tkSemana').value;
+  const para=document.getElementById('tkPara').value;
+  const diaA=document.getElementById('tkDiaA').value, diaB=document.getElementById('tkDiaB').value;
+  if(!para){ alert('Selecione o colega.'); return; }
+  if(diaA===''||diaB===''){ alert('Selecione os dias do seu plantão e da reposição.'); return; }
+  state.trocas.push({ id:'t'+Date.now(), deId:eu, paraId:para, semanaId:sem, diaA:+diaA, diaB:+diaB, status:'aguardando_colega', lidaGestor:false, ts:Date.now() });
+  save(); fecharTroca(); renderTrocas(); refreshInbox();
+  alert('Solicitação enviada! Aguarde o aceite de '+nomeColab(para)+'.');
+}
+// ---- ações ----
+function aceitarColega(id){ const t=state.trocas.find(x=>x.id===id); if(!t)return; t.status='aguardando_gestor'; t.lidaGestor=false; save(); renderTrocas(); refreshInbox(); }
+function recusarColega(id){ const t=state.trocas.find(x=>x.id===id); if(!t)return; t.status='recusada_colega'; save(); renderTrocas(); }
+function autorizarTroca(id){
+  const t=state.trocas.find(x=>x.id===id); if(!t)return;
+  const wk=t.semanaId, eA=state.escala[wk] && state.escala[wk][t.deId], eB=state.escala[wk] && state.escala[wk][t.paraId];
+  if(Array.isArray(eA)&&Array.isArray(eB)){
+    const valA=eA[t.diaA], valB=eB[t.diaB];
+    eB[t.diaA]=valA; eA[t.diaA]='';          // colega assume o plantão de A
+    eA[t.diaB]=valB; eB[t.diaB]='';          // A assume o plantão do colega (reposição)
+    state.trocaCells[wk+'|'+t.paraId+'|'+t.diaA]=t.id;
+    state.trocaCells[wk+'|'+t.deId+'|'+t.diaB]=t.id;
+  }
+  t.status='autorizada'; t.lidaGestor=true;
+  save(); renderTrocas(); renderEscala(); refreshInbox();
+}
+function recusarGestor(id){ const t=state.trocas.find(x=>x.id===id); if(!t)return; t.status='recusada_gestor'; t.lidaGestor=true; save(); renderTrocas(); refreshInbox(); }
+// ---- render ----
+function cardTroca(t, acoes, nova){
+  const s=ST[t.status]||{t:t.status,c:'#555'};
+  let h='<div class="troca-card'+(nova?' nova':'')+'">';
+  h+='<div class="desc">'+descTroca(t)+'</div>';
+  h+='<div class="st" style="color:'+s.c+'">'+(nova?'🔵 ':'')+s.t+'</div>';
+  if(acoes) h+='<div class="ac">'+acoes+'</div>';
+  h+='</div>';
+  return h;
+}
+function renderTrocas(){
+  fillEuSel();
+  const quem=document.getElementById('trocaQuem');
+  if(ehColab()){
+    document.getElementById('euSel').value=sessao.colabId;
+    if(quem){ quem.style.display='inline-flex'; quem.textContent='Sou: '+nomeColab(sessao.colabId); }
+  } else if(quem){ quem.style.display='none'; }
+  const eu=document.getElementById('euSel').value;
+  let html='';
+  // Recebidas (aguardando meu aceite)
+  const receb=state.trocas.filter(t=>t.paraId===eu && t.status==='aguardando_colega');
+  html+='<div class="troca-sec"><h3>📥 Trocas recebidas (aguardando seu aceite)</h3>';
+  html+= receb.length? receb.map(t=>cardTroca(t,'<button class="btn ok mini" onclick="aceitarColega(\''+t.id+'\')">✓ Aceitar</button><button class="btn no mini" onclick="recusarColega(\''+t.id+'\')">✗ Recusar</button>',true)).join('') : '<div class="troca-empty">Nenhuma solicitação aguardando você.</div>';
+  html+='</div>';
+  // Minhas enviadas
+  const env=state.trocas.filter(t=>t.deId===eu).slice().reverse();
+  html+='<div class="troca-sec"><h3>📤 Minhas solicitações enviadas</h3>';
+  html+= env.length? env.map(t=>cardTroca(t,null,false)).join('') : '<div class="troca-empty">Você ainda não solicitou trocas.</div>';
+  html+='</div>';
+  // Caixa do gestor
+  if(editing){
+    const pend=state.trocas.filter(t=>t.status==='aguardando_gestor');
+    html+='<div class="troca-sec"><h3>🛡️ Trocas — aguardando autorização</h3>';
+    html+= pend.length? pend.map(t=>cardTroca(t,'<button class="btn ok mini" onclick="autorizarTroca(\''+t.id+'\')">✓ Autorizar</button><button class="btn no mini" onclick="recusarGestor(\''+t.id+'\')">✗ Recusar</button>', !t.lidaGestor)).join('') : '<div class="troca-empty">Nenhuma troca aguardando autorização.</div>';
+    html+='</div>';
+    // Pedidos de folga de fim de semana
+    const pf=(state.folgas||[]).filter(f=>f.status==='pendente').slice().reverse();
+    html+='<div class="troca-sec"><h3>🏖️ Pedidos de folga (fim de semana)</h3>';
+    html+= pf.length? pf.map(f=>{
+      const nova=!f.lidaGestor;
+      return '<div class="troca-card'+(nova?' nova':'')+'"><div class="desc">'+nomeColab(f.colabId)+' pede folga em <b>'+formatarDataBR(f.dataISO)+'</b> ('+(f.dia===5?'sábado':'domingo')+')</div><div class="st" style="color:#b8860b">'+(nova?'🔵 ':'')+'Aguardando sua aprovação</div>'+(f.motivo?'<div class="st" style="color:#5c6b75">Motivo: '+f.motivo+'</div>':'')+'<div class="ac"><button class="btn ok mini" onclick="aprovarFolga(\''+f.id+'\')">✓ Aprovar</button><button class="btn no mini" onclick="recusarFolga(\''+f.id+'\')">✗ Recusar</button></div></div>';
+    }).join('') : '<div class="troca-empty">Nenhum pedido de folga pendente.</div>';
+    html+='</div>';
+    const hist=state.trocas.filter(t=>t.status==='autorizada'||t.status==='recusada_gestor'||t.status==='recusada_colega').slice().reverse();
+    html+='<div class="troca-sec"><h3>📋 Histórico de trocas</h3>';
+    html+= hist.length? hist.map(t=>cardTroca(t,null,false)).join('') : '<div class="troca-empty">Sem histórico ainda.</div>';
+    html+='</div>';
+  }
+  document.getElementById('trocaWrap').innerHTML=html;
+  // marca como lidas as pendências do gestor ao visualizar
+  if(editing){
+    let mudou=false;
+    state.trocas.forEach(t=>{ if(t.status==='aguardando_gestor' && !t.lidaGestor){ t.lidaGestor=true; mudou=true; } });
+    (state.folgas||[]).forEach(f=>{ if(f.status==='pendente' && !f.lidaGestor){ f.lidaGestor=true; mudou=true; } });
+    if(mudou){ save(); refreshInbox(); }
+  }
+}
+
+/* ============== FOLGAS GARANTIDAS (FDS) ============== */
+const folModal=document.getElementById('folModal');
+function antecMin(){ return (state.config&&state.config.antecedenciaDias)||60; }
+function formatarDataBR(iso){ const p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+function abrirFolga(){
+  if(!ehColab()){ alert('Entre como colaborador (👤 Entrar) para pedir folga.'); return; }
+  document.getElementById('folMinTxt').textContent=antecMin();
+  document.getElementById('folData').value=''; document.getElementById('folMotivo').value='';
+  atualizaFolInfo(); renderFolLista();
+  folModal.style.display='flex';
+}
+function fecharFolga(){ folModal.style.display='none'; }
+function semanaDiaDaData(iso){
+  if(!iso) return null;
+  const d=new Date(iso+'T00:00:00');
+  for(const sw of state.semanas){
+    const s=new Date(sw.startISO+'T00:00:00');
+    const diff=Math.round((d-s)/86400000);
+    if(diff>=0 && diff<=6) return {semanaId:sw.id, dia:diff};
+  }
+  return null;
+}
+function diasAteData(iso){
+  const d=new Date(iso+'T00:00:00'); const hoje=new Date(); hoje.setHours(0,0,0,0);
+  return Math.round((d-hoje)/86400000);
+}
+function atualizaFolInfo(){
+  const iso=document.getElementById('folData').value;
+  const info=document.getElementById('folInfo');
+  if(!iso){ info.textContent='Selecione um sábado ou domingo.'; return; }
+  const dow=new Date(iso+'T00:00:00').getDay();
+  if(dow!==0 && dow!==6){ info.innerHTML='⚠️ A garantia de folga é só para <b>sábado ou domingo</b>.'; return; }
+  const dias=diasAteData(iso), min=antecMin();
+  let txt=(dow===6?'Sábado':'Domingo')+' · faltam '+dias+' dia(s). ';
+  txt += dias<min ? ('⚠️ Mínimo de '+min+' dias de antecedência — não será possível enviar.') : 'Dentro do prazo ✓';
+  info.innerHTML=txt;
+}
+function enviarFolga(){
+  if(!ehColab()){ alert('Entre como colaborador para pedir folga.'); return; }
+  const iso=document.getElementById('folData').value;
+  const motivo=document.getElementById('folMotivo').value.trim();
+  if(!iso){ alert('Selecione a data.'); return; }
+  const dow=new Date(iso+'T00:00:00').getDay();
+  if(dow!==0 && dow!==6){ alert('A garantia de folga é só para sábado ou domingo.'); return; }
+  const dias=diasAteData(iso), min=antecMin();
+  if(dias<min){ alert('É necessário pedir com no mínimo '+min+' dias de antecedência. Faltam '+dias+'.'); return; }
+  const dia = dow===6?5:6;   // Sáb=índice 5, Dom=índice 6
+  state.folgas.push({id:'f'+Date.now(), colabId:sessao.colabId, dataISO:iso, dia, motivo, status:'pendente', lidaGestor:false, ts:Date.now()});
+  save(); renderFolLista(); refreshInbox();
+  document.getElementById('folData').value=''; document.getElementById('folMotivo').value=''; atualizaFolInfo();
+  alert('Pedido enviado! A gestora vai avaliar na caixa de mensagens.');
+}
+function renderFolLista(){
+  const wrap=document.getElementById('folLista'); if(!wrap) return;
+  const eu=ehColab()?sessao.colabId:null;
+  const list=(state.folgas||[]).filter(f=> eu? f.colabId===eu : true).slice().reverse();
+  let h='<h3 style="font-size:15px;margin:18px 0 8px;color:var(--verde-d)">Meus pedidos de folga</h3>';
+  if(!list.length){ wrap.innerHTML=h+'<div class="troca-empty">Nenhum pedido ainda.</div>'; return; }
+  const ST={pendente:['Aguardando aprovação da gestora','#b8860b'],aprovada:['Aprovada ✓','#177a3c'],recusada:['Recusada','#c0392b']};
+  h+=list.map(f=>{ const s=ST[f.status]||['',''];
+    return '<div class="troca-card"><div class="desc">Folga em '+formatarDataBR(f.dataISO)+' ('+(f.dia===5?'Sáb':'Dom')+')</div><div class="st" style="color:'+s[1]+'">'+s[0]+'</div>'+(f.motivo?'<div class="st" style="color:#5c6b75">Motivo: '+f.motivo+'</div>':'')+(f.status==='pendente'?'<div class="ac"><button class="btn no mini" onclick="cancelarFolga(\''+f.id+'\')">Cancelar</button></div>':'')+'</div>';
+  }).join('');
+  wrap.innerHTML=h;
+}
+function cancelarFolga(id){ const f=(state.folgas||[]).find(x=>x.id===id); if(!f||f.status!=='pendente')return; if(!confirm('Cancelar este pedido?'))return; state.folgas=state.folgas.filter(x=>x.id!==id); save(); renderFolLista(); refreshInbox(); }
+// ---- aprovação (gestor) ----
+function aplicarFolgaNaEscala(f){
+  const sd=semanaDiaDaData(f.dataISO); if(!sd) return false;
+  const c=state.colaboradores.find(x=>x.id===f.colabId);
+  const e=state.escala[sd.semanaId] && state.escala[sd.semanaId][f.colabId];
+  if(!Array.isArray(e)) return false;
+  f.original=e.slice(); f.semanaIdAplicada=sd.semanaId; f.diaAplicado=sd.dia;
+  const r=remanejarDia(c, e, sd.dia);
+  state.folgaCells[sd.semanaId+'|'+f.colabId+'|'+sd.dia]=f.id;
+  f.remanejado=r.rem; r.rem.forEach(d=> state.remanejoCells[sd.semanaId+'|'+f.colabId+'|'+d]=f.id);
+  return true;
+}
+function aprovarFolga(id){
+  const f=(state.folgas||[]).find(x=>x.id===id); if(!f)return;
+  f.status='aprovada'; f.lidaGestor=true; f.aprovadoPor=(typeof sessao!=='undefined'&&sessao.nome)||'Gestor';
+  aplicarFolgaNaEscala(f);   // se a semana já existe, aplica agora; senão, será respeitada ao gerar
+  save(); renderTrocas(); renderEscala(); refreshInbox();
+}
+function recusarFolga(id){ const f=(state.folgas||[]).find(x=>x.id===id); if(!f)return; f.status='recusada'; f.lidaGestor=true; save(); renderTrocas(); refreshInbox(); }
+document.getElementById('folCancel').addEventListener('click',fecharFolga);
+document.getElementById('folOk').addEventListener('click',enviarFolga);
+document.getElementById('folData').addEventListener('change',atualizaFolInfo);
+folModal.addEventListener('click',e=>{ if(e.target===folModal) fecharFolga(); });
+
+/* ============== PAPÉIS / LOGIN ============== */
+let sessao = carregarSessao();
+function carregarSessao(){ try{ const s=JSON.parse(localStorage.getItem('escalaSessao')); if(s&&s.papel) return s; }catch(e){} return {papel:'gestor'}; }
+function salvarSessao(){ try{ localStorage.setItem('escalaSessao', JSON.stringify(sessao)); }catch(e){} }
+function ehColab(){ return sessao.papel==='colaborador' && state.colaboradores.some(c=>c.id===sessao.colabId); }
+function aplicarPapel(){
+  const colab=ehColab();
+  document.body.classList.toggle('colab-mode', colab);
+  if(colab && editing) setEditing(false);
+  const chip=document.getElementById('userChip');
+  if(chip) chip.textContent = colab ? ('👤 '+nomeColab(sessao.colabId)+' · Colaborador') : ('🛡️ '+(sessao.nome||'Gestor')+' · Gestão');
+  const lb=document.getElementById('btnLogin'); if(lb) lb.textContent = colab?'🔁 Trocar usuário':'👤 Entrar';
+  if(colab){
+    const me=document.getElementById('meSel'); if(me) me.value=sessao.colabId;
+    const eu=document.getElementById('euSel'); if(eu) eu.value=sessao.colabId;
+    const active=document.querySelector('.tab.active');
+    if(active && active.dataset.tab==='colab') setTab('minha');
+  }
+  refreshInbox();
+}
+const loginModal=document.getElementById('loginModal');
+function fillLoginColab(){ document.getElementById('loginColab').innerHTML=state.colaboradores.map(c=>'<option value="'+c.id+'">'+c.nome+'</option>').join(''); }
+function fillLoginGestor(){ document.getElementById('loginGestor').innerHTML=(state.gestores||[]).map(g=>'<option value="'+g.id+'">'+g.nome+'</option>').join(''); }
+function toggleLoginColab(){
+  const ges=document.getElementById('loginPapel').value==='gestor';
+  document.getElementById('loginColabWrap').style.display = ges?'none':'';
+  document.getElementById('loginGestorWrap').style.display = ges?'':'none';
+}
+function abrirLogin(){
+  fillLoginColab(); fillLoginGestor();
+  document.getElementById('loginPapel').value=sessao.papel;
+  if(sessao.colabId) document.getElementById('loginColab').value=sessao.colabId;
+  if(sessao.gestorId) document.getElementById('loginGestor').value=sessao.gestorId;
+  toggleLoginColab();
+  loginModal.style.display='flex';
+}
+function fecharLogin(){ loginModal.style.display='none'; }
+document.getElementById('btnLogin').addEventListener('click',abrirLogin);
+document.getElementById('loginCancel').addEventListener('click',fecharLogin);
+document.getElementById('loginPapel').addEventListener('change',toggleLoginColab);
+loginModal.addEventListener('click',e=>{ if(e.target===loginModal) fecharLogin(); });
+document.getElementById('loginOk').addEventListener('click',()=>{
+  const papel=document.getElementById('loginPapel').value;
+  if(papel==='colaborador'){
+    sessao = {papel:'colaborador', colabId:document.getElementById('loginColab').value};
+  } else {
+    const gid=document.getElementById('loginGestor').value;
+    const g=(state.gestores||[]).find(x=>x.id===gid);
+    sessao = {papel:'gestor', gestorId:gid, nome:g?g.nome:'Gestor'};
+  }
+  salvarSessao(); fecharLogin(); aplicarPapel();
+  setTab(papel==='colaborador'?'minha':'escala');
+});
+
+/* ============== INIT ============== */
+fillWeekSel();
+renderMeSelect();
+fillEuSel();
+renderEscala();
+aplicarPapel();
+if(ehColab()) setTab('minha');
+refreshInbox();
+</script>
+</body>
+</html>
