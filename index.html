@@ -272,6 +272,20 @@
   body.paisagem-mobile .week-bar{border-radius:0!important;font-size:13px;padding:5px 10px}
   body.paisagem-mobile table.escala{font-size:12px;min-width:0;width:100%}
   body.paisagem-mobile table.escala th,body.paisagem-mobile table.escala td{padding:3px 5px}
+  /* ---- Backup CSS puro (caso JS não rode a tempo) ---- */
+  @media (orientation:landscape) and (max-height:500px){
+    header.top{display:none!important}.tabs{display:none!important}.toolbar{display:none!important}
+    .legend{display:none!important}.avisos{display:none!important}#escalaInbox{display:none!important}
+    #rotateHint{display:none!important}.print-only{display:none!important}
+    main{padding:0!important;max-width:none!important}
+    #tab-minha,#tab-troca,#tab-colab{display:none!important}
+    #tab-escala{display:block!important}
+    .card{border-radius:0!important;box-shadow:none!important;margin:0!important;overflow-x:auto}
+    .week-bar{border-radius:0!important;font-size:13px;padding:5px 10px}
+    table.escala{font-size:12px;min-width:0;width:100%}
+    table.escala th,table.escala td{padding:3px 5px}
+    #landscapeBack{display:flex!important}
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
@@ -2381,29 +2395,22 @@ async function gerarImagemWhatsApp(){
 }
 
 /* ============== ORIENTAÇÃO MOBILE ============== */
-// Usa matchMedia — mais confiável no iOS Safari do que innerWidth/innerHeight
-const _mqLandscape = window.matchMedia('(orientation: landscape)');
-const _mqMobile    = window.matchMedia('(max-device-width: 768px)');
-
 function checkOrientation(){
-  const isLandscape = _mqLandscape.matches;
-  // "telefone" = lado mais curto da tela física ≤ 600px
-  const isMobile = _mqMobile.matches || Math.min(screen.availWidth||screen.width, screen.availHeight||screen.height) <= 600;
-  document.body.classList.toggle('paisagem-mobile', isMobile && isLandscape);
-  // Dica: retrato + aba escala visível
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const isLand  = w > h;
+  // iPhone: menor lado ≤ 500px (iPhone 14 Pro Max portrait = 430px)
+  const isPhone = Math.min(w, h) <= 500;
+  document.body.classList.toggle('paisagem-mobile', isLand && isPhone);
   const tabEscala = document.getElementById('tab-escala');
-  const escalaVisivel = tabEscala && tabEscala.style.display !== 'none';
-  document.body.classList.toggle('mostra-rotate-hint', isMobile && !isLandscape && escalaVisivel);
+  const onEscala  = !!tabEscala && tabEscala.style.display !== 'none';
+  document.body.classList.toggle('mostra-rotate-hint', !isLand && isPhone && onEscala);
 }
-
-// iOS Safari: usar evento 'change' no matchMedia é o mais confiável
-if(_mqLandscape.addEventListener){ _mqLandscape.addEventListener('change', checkOrientation); }
-else { _mqLandscape.addListener(checkOrientation); } // Safari < 14 fallback
-
-window.addEventListener('resize', checkOrientation);
-// Fallback extra para iOS: alguns dispositivos só disparam orientationchange
-window.addEventListener('orientationchange', ()=>{ setTimeout(checkOrientation, 150); setTimeout(checkOrientation, 500); });
-
+// Dispara em múltiplos pontos para cobrir todos os browsers iOS
+function _orientFire(){ checkOrientation(); setTimeout(checkOrientation,100); setTimeout(checkOrientation,400); }
+window.addEventListener('resize', _orientFire);
+window.addEventListener('orientationchange', _orientFire);
+if(window.screen && window.screen.orientation) window.screen.orientation.addEventListener('change', _orientFire);
 document.getElementById('landscapeBack').addEventListener('click', ()=>{
   mostrarToast('↩ Gire o telefone para voltar ao menu','#37474f');
 });
