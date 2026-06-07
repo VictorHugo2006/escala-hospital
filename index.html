@@ -39,6 +39,8 @@
   button.btn.primary{background:var(--verde);color:#fff;border-color:var(--verde-d)}
   button.btn.primary:hover{background:var(--verde-d)}
   button.btn.on{background:#ffe9a8;border-color:#e0b94a;color:#7a5a00}
+  button.btn.sair{background:#c0392b;color:#fff;border-color:#a93226}
+  button.btn.sair:hover{background:#a93226;border-color:#922b21}
   .gestor-only{display:none!important}
   body.editing .gestor-only{display:inline-flex!important}
   .user-chip{font-size:12px;font-weight:700;color:#fff;background:rgba(255,255,255,.18);padding:6px 11px;border-radius:14px;white-space:nowrap}
@@ -301,7 +303,7 @@
   <span id="userChip" class="user-chip"></span>
   <button class="btn gestor-only" id="btnInbox" title="Caixa de solicitações pendentes de autorização">📨 Trocas/Exceções <span id="inboxBadge" class="badge-n" style="display:none">0</span></button>
   <button class="btn somente-gestor" id="btnEdit">🔓 Modo Gestor</button>
-  <button class="btn" id="btnLogin" style="display:none">🚪 Sair</button>
+  <button class="btn sair" id="btnLogin" style="display:none">🚪 Sair</button>
 </header>
 
 <nav class="tabs">
@@ -1073,8 +1075,12 @@ function renderMinha(){
   painel += '<button class="btn primary" onclick="setTab(\'troca\')">🔄 Solicitar / ver trocas</button>';
   painel += '<button class="btn" onclick="abrirFolga()" title="Prazo mínimo de '+antecMin()+' dias de antecedência">🏖️ Pedir folga <small style="font-size:10px;opacity:.8;font-weight:400">(mín. '+antecMin()+' dias antes)</small></button>';
   painel += '<button class="btn" onclick="setTab(\'escala\')">📅 Ver escala geral</button>';
-  painel += '<button class="btn" onclick="window.print()">🖨️ Imprimir minha escala</button>';
-  painel += '</div></div>';
+  painel += '<button class="btn somente-gestor" onclick="window.print()">🖨️ Imprimir minha escala</button>';
+  painel += '</div>';
+  painel += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e3e8eb">';
+  painel += '<button class="btn sair" onclick="logout()">🚪 Sair do sistema</button>';
+  painel += '</div>';
+  painel += '</div>';
 
   let html = painel;
   html += '<div class="card" style="padding:16px 18px"><div style="font-size:20px;font-weight:800;color:var(--verde-d)">'+c.nome+'</div>';
