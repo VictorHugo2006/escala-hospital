@@ -264,7 +264,7 @@
   <span id="userChip" class="user-chip"></span>
   <button class="btn gestor-only" id="btnInbox" title="Caixa de solicitações pendentes de autorização">📨 Trocas/Exceções <span id="inboxBadge" class="badge-n" style="display:none">0</span></button>
   <button class="btn somente-gestor" id="btnEdit">🔓 Modo Gestor</button>
-  <button class="btn" id="btnLogin">👤 Entrar</button>
+  <button class="btn" id="btnLogin" style="display:none">🚪 Sair</button>
 </header>
 
 <nav class="tabs">
@@ -504,23 +504,35 @@
   </div>
 </div>
 
-<div id="loginModal" class="modal-bg" style="display:none">
-  <div class="modal">
-    <h3>👤 Entrar no sistema</h3>
-    <p id="loginDesc" style="font-size:13px;color:#5c6b75;margin:0 0 12px">Acesse com seu perfil. Gestores precisam de PIN.</p>
-    <div class="fld"><label>Acessar como</label>
-      <select id="loginPapel"><option value="colaborador">Colaborador</option><option value="gestor">🛡️ Gestor</option></select>
+<!-- Login Gate — tela de entrada obrigatória -->
+<div id="loginGate" style="display:none;position:fixed;inset:0;z-index:9998;background:linear-gradient(150deg,#1b7a42,#0a4a25);align-items:center;justify-content:center;padding:20px;overflow-y:auto">
+  <div style="background:#fff;border-radius:20px;padding:36px 28px;width:min(380px,100%);box-shadow:0 20px 60px rgba(0,0,0,.4)">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:44px;margin-bottom:10px">🏥</div>
+      <div style="font-size:18px;font-weight:800;color:#1b5e20;line-height:1.3">Hospital Santa Catarina</div>
+      <div style="font-size:13px;color:#546e7a;margin-top:5px;font-weight:600">Raio-X · Escala de Plantões</div>
     </div>
-    <div class="fld" id="loginColabWrap"><label>Selecione seu nome</label><select id="loginColab"></select></div>
-    <div class="fld" id="loginGestorWrap" style="display:none"><label>Selecione o gestor</label><select id="loginGestor"></select></div>
-    <div class="fld" id="loginPinWrap" style="display:none;align-items:center">
-      <label>PIN de acesso (4–6 dígitos)</label>
-      <input type="password" id="loginPin" class="pin-input" maxlength="6" placeholder="••••••" inputmode="numeric" autocomplete="current-password">
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;font-weight:700;color:#7a8893;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:7px">Quem é você?</label>
+      <select id="gateUser" onchange="gateOnUserChange()" style="width:100%;padding:13px 14px;border:2px solid #e0e7ec;border-radius:10px;font-size:15px;font-family:inherit;background:#fff;color:#1f2a33;outline:none">
+        <option value="">Selecione seu nome...</option>
+      </select>
     </div>
-    <div class="modal-actions">
-      <button class="btn" id="loginCancel">Cancelar</button>
-      <button class="btn primary" id="loginOk">Entrar →</button>
+    <div id="gateSenhaWrap" style="display:none;margin-bottom:10px">
+      <label id="gateSenhaLabel" style="font-size:11px;font-weight:700;color:#7a8893;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:7px">Senha</label>
+      <input type="password" id="gateSenha" placeholder="••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')tentarLoginGate()"
+        style="width:100%;padding:13px;border:2px solid #e0e7ec;border-radius:10px;font-size:20px;letter-spacing:5px;text-align:center;font-family:monospace;outline:none;transition:border-color .2s">
     </div>
+    <div id="gateSenha2Wrap" style="display:none;margin-bottom:10px">
+      <label style="font-size:11px;font-weight:700;color:#7a8893;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:7px">Confirme a senha</label>
+      <input type="password" id="gateSenha2" placeholder="••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter')tentarLoginGate()"
+        style="width:100%;padding:13px;border:2px solid #e0e7ec;border-radius:10px;font-size:20px;letter-spacing:5px;text-align:center;font-family:monospace;outline:none">
+    </div>
+    <div id="gatePrimeiroAcesso" style="display:none;background:#e8f5e9;border-radius:8px;padding:10px 13px;font-size:12.5px;color:#1b5e20;font-weight:600;margin-bottom:12px">
+      👋 Primeiro acesso! Crie sua senha — ela será pedida nas próximas vezes.
+    </div>
+    <div id="gateErro" style="display:none;background:#fde8e8;border-radius:8px;padding:10px 13px;font-size:13px;color:#c0392b;font-weight:700;margin-bottom:12px;text-align:center"></div>
+    <button onclick="tentarLoginGate()" style="width:100%;padding:15px;background:#1e9e57;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:.5px;margin-top:4px">Entrar →</button>
   </div>
 </div>
 
@@ -755,7 +767,7 @@ function checkURLToken(){
   const c=state.colaboradores.find(x=>x.token===token);
   if(c){
     sessao={papel:'colaborador',colabId:c.id};
-    salvarSessao(); aplicarPapel(); setTab('minha');
+    salvarSessao(); fecharLoginGate(); aplicarPapel(); setTab('minha');
     history.replaceState(null,'',window.location.pathname);
     mostrarToast('👋 Bem-vindo(a), '+c.nome.split(' ')[0]+'!','#1b5e20');
     return true;
@@ -796,6 +808,8 @@ function migrar(s){
     s._migs.tokensColab=true;
   }
   if(!s.superAdmin) s.superAdmin={};
+  // campo senha para colaboradores (null = ainda não definiu)
+  s.colaboradores.forEach(c=>{ if(!c.hasOwnProperty('senha')) c.senha=null; });
   if(!s._migs.feriadosBR2026){
     FERIADOS_PADRAO.forEach(f=>{ if(!s.feriados.some(x=>x.dataISO===f.dataISO)) s.feriados.push(deepClone(f)); });
     s._migs.feriadosBR2026=true;
@@ -1227,7 +1241,7 @@ function fillWeekSel(){
 
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>setTab(t.dataset.tab)));
 document.getElementById('btnEdit').addEventListener('click',()=>{
-  if(!ehGestor()){ abrirLogin(); document.getElementById('loginPapel').value='gestor'; toggleLoginColab(); return; }
+  if(!ehGestor()){ abrirLoginGate(); return; }
   setEditing(!editing);
 });
 document.getElementById('weekSel').addEventListener('change',e=>{curWeek=+e.target.value;renderEscala();});
@@ -2018,6 +2032,7 @@ function salvarSessao(){ try{ localStorage.setItem('escalaSessao', JSON.stringif
 function ehColab(){ return sessao.papel==='colaborador' && state.colaboradores.some(c=>c.id===sessao.colabId); }
 function ehSuper(){ return sessao.papel==='super'; }
 function ehGestor(){ return (sessao.papel==='gestor' && !!sessao.gestorId) || ehSuper(); }
+function precisaLogin(){ return !ehColab() && !ehGestor() && !ehSuper(); }
 function aplicarPapel(){
   const colab=ehColab();
   const gestor=ehGestor();
@@ -2027,13 +2042,13 @@ function aplicarPapel(){
   if(colab && editing) setEditing(false);
   const chip=document.getElementById('userChip');
   if(chip){
-    if(colab) chip.textContent='👤 '+nomeColab(sessao.colabId)+' · Colaborador';
+    if(colab) chip.textContent='👤 '+nomeColab(sessao.colabId);
     else if(ehSuper()) chip.textContent='🛡️ Gestão';
-    else if(gestor) chip.textContent='🛡️ '+(sessao.nome||'Gestor')+' · Gestão';
+    else if(gestor) chip.textContent='🛡️ '+(sessao.nome||'Gestor');
     else chip.textContent='';
   }
   const lb=document.getElementById('btnLogin');
-  if(lb) lb.textContent = colab?'🔁 Trocar usuário':'👤 Entrar';
+  if(lb){ lb.style.display=precisaLogin()?'none':'inline-flex'; lb.textContent='🚪 Sair'; }
   if(colab){
     const me=document.getElementById('meSel'); if(me) me.value=sessao.colabId;
     const eu=document.getElementById('euSel'); if(eu) eu.value=sessao.colabId;
@@ -2042,40 +2057,114 @@ function aplicarPapel(){
   }
   refreshInbox();
 }
-const loginModal=document.getElementById('loginModal');
-function fillLoginColab(){ document.getElementById('loginColab').innerHTML=state.colaboradores.map(c=>'<option value="'+c.id+'">'+c.nome+'</option>').join(''); }
-function fillLoginGestor(){ document.getElementById('loginGestor').innerHTML=(state.gestores||[]).map(g=>'<option value="'+g.id+'">'+g.nome+'</option>').join(''); }
-function toggleLoginColab(){
-  const ges=document.getElementById('loginPapel').value==='gestor';
-  document.getElementById('loginColabWrap').style.display=ges?'none':'';
-  document.getElementById('loginGestorWrap').style.display=ges?'':'none';
-  document.getElementById('loginPinWrap').style.display=ges?'flex':'none';
-  if(ges) setTimeout(()=>document.getElementById('loginPin').focus(),80);
+/* ---- Login Gate ---- */
+function _getSenhaUsuario(uid){
+  const c=state.colaboradores.find(x=>x.id===uid); if(c) return c.senha||null;
+  const g=(state.gestores||[]).find(x=>x.id===uid); if(g) return g.pin||g.senha||null;
+  return null;
 }
-function abrirLogin(){
-  fillLoginColab(); fillLoginGestor();
-  document.getElementById('loginPapel').value=sessao.papel==='gestor'?'gestor':'colaborador';
-  if(sessao.colabId) document.getElementById('loginColab').value=sessao.colabId;
-  if(sessao.gestorId) document.getElementById('loginGestor').value=sessao.gestorId;
-  document.getElementById('loginPin').value='';
-  toggleLoginColab();
-  loginModal.style.display='flex';
+function _setSenhaUsuario(uid, senha){
+  const c=state.colaboradores.find(x=>x.id===uid); if(c){ c.senha=senha; return; }
+  const g=(state.gestores||[]).find(x=>x.id===uid); if(g){ g.pin=senha; }
 }
-function fecharLogin(){ loginModal.style.display='none'; }
-function alterarPinGestor(gid){
-  const g=(state.gestores||[]).find(x=>x.id===gid); if(!g) return;
-  if(g.pin){
-    const atual=prompt('PIN atual de '+g.nome+':','');
-    if(atual!==g.pin){ alert('PIN incorreto.'); return; }
+function fillGateUsers(){
+  const sel=document.getElementById('gateUser');
+  let html='<option value="">Selecione seu nome...</option>';
+  if(state.colaboradores.length){
+    html+='<optgroup label="── Colaboradores ──">';
+    state.colaboradores.forEach(c=>{ html+='<option value="c:'+c.id+'">'+c.nome+'</option>'; });
+    html+='</optgroup>';
   }
-  const novo=prompt('Novo PIN (4 a 6 dígitos numéricos):','');
-  if(!novo||!/^\d{4,6}$/.test(novo)){ alert('PIN inválido. Use 4 a 6 dígitos.'); return; }
-  const conf=prompt('Confirme o novo PIN:','');
-  if(conf!==novo){ alert('PINs não coincidem.'); return; }
-  g.pin=novo; save();
-  alert('✅ PIN de '+g.nome+' atualizado com sucesso!');
+  if((state.gestores||[]).length){
+    html+='<optgroup label="── Gestores ──">';
+    (state.gestores||[]).forEach(g=>{ html+='<option value="g:'+g.id+'">'+g.nome+' 🛡️</option>'; });
+    html+='</optgroup>';
+  }
+  sel.innerHTML=html;
+}
+function gateOnUserChange(){
+  const val=document.getElementById('gateUser').value;
+  document.getElementById('gateErro').style.display='none';
+  const sw=document.getElementById('gateSenhaWrap');
+  const s2w=document.getElementById('gateSenha2Wrap');
+  const pa=document.getElementById('gatePrimeiroAcesso');
+  if(!val){ sw.style.display='none'; s2w.style.display='none'; pa.style.display='none'; return; }
+  const uid=val.slice(2);
+  const senhaSalva=_getSenhaUsuario(uid);
+  sw.style.display='';
+  document.getElementById('gateSenha').value='';
+  setTimeout(()=>document.getElementById('gateSenha').focus(),80);
+  if(!senhaSalva){
+    document.getElementById('gateSenhaLabel').textContent='Crie sua senha';
+    document.getElementById('gateSenha').placeholder='Mínimo 4 caracteres';
+    s2w.style.display=''; document.getElementById('gateSenha2').value='';
+    pa.style.display='';
+  } else {
+    document.getElementById('gateSenhaLabel').textContent='Senha';
+    document.getElementById('gateSenha').placeholder='••••••';
+    s2w.style.display='none'; pa.style.display='none';
+  }
+}
+function abrirLoginGate(){
+  fillGateUsers();
+  document.getElementById('gateUser').value='';
+  document.getElementById('gateSenhaWrap').style.display='none';
+  document.getElementById('gateSenha2Wrap').style.display='none';
+  document.getElementById('gatePrimeiroAcesso').style.display='none';
+  document.getElementById('gateErro').style.display='none';
+  document.getElementById('loginGate').style.display='flex';
+}
+function fecharLoginGate(){ document.getElementById('loginGate').style.display='none'; }
+function mostrarErroGate(msg){ const e=document.getElementById('gateErro'); e.textContent=msg; e.style.display=''; }
+function tentarLoginGate(){
+  const val=document.getElementById('gateUser').value;
+  if(!val){ mostrarErroGate('Selecione seu nome.'); return; }
+  const uid=val.slice(2);
+  const isGestor=val.startsWith('g:');
+  const senha=document.getElementById('gateSenha').value;
+  if(!senha||senha.length<4){ mostrarErroGate('A senha deve ter ao menos 4 caracteres.'); return; }
+  const senhaSalva=_getSenhaUsuario(uid);
+  if(!senhaSalva){
+    const conf=document.getElementById('gateSenha2').value;
+    if(senha!==conf){ mostrarErroGate('As senhas não coincidem. Tente novamente.'); document.getElementById('gateSenha2').value=''; document.getElementById('gateSenha2').focus(); return; }
+    _setSenhaUsuario(uid, senha); save();
+  } else {
+    if(senha!==senhaSalva){ mostrarErroGate('Senha incorreta. Tente novamente.'); document.getElementById('gateSenha').value=''; document.getElementById('gateSenha').focus(); return; }
+  }
+  if(isGestor){
+    const g=(state.gestores||[]).find(x=>x.id===uid);
+    sessao={papel:'gestor',gestorId:uid,nome:g?g.nome:'Gestor'};
+  } else {
+    sessao={papel:'colaborador',colabId:uid};
+  }
+  salvarSessao(); fecharLoginGate(); aplicarPapel();
+  const primeiroNome=(isGestor?((state.gestores||[]).find(x=>x.id===uid)||{}).nome:nomeColab(uid)||'').split(' ')[0];
+  mostrarToast('👋 Bem-vindo(a), '+primeiroNome+'!','#1b5e20');
+  setTab(isGestor?'escala':'minha');
+}
+function logout(){
+  if(editing) setEditing(false);
+  sessao={papel:'visitante'}; salvarSessao(); aplicarPapel();
+  abrirLoginGate();
+}
+document.getElementById('btnLogin').addEventListener('click', logout);
+function alterarSenhaGestor(gid){
+  const g=(state.gestores||[]).find(x=>x.id===gid); if(!g) return;
+  const senhaAtual=g.pin||g.senha||null;
+  if(senhaAtual){
+    const atual=prompt('Senha atual de '+g.nome+':','');
+    if(atual!==senhaAtual){ alert('Senha incorreta.'); return; }
+  }
+  const nova=prompt('Nova senha (mínimo 4 caracteres):','');
+  if(!nova||nova.length<4){ alert('Senha inválida.'); return; }
+  const conf=prompt('Confirme a nova senha:','');
+  if(conf!==nova){ alert('Senhas não coincidem.'); return; }
+  g.pin=nova; save();
+  alert('✅ Senha de '+g.nome+' atualizada!');
   renderColab();
 }
+// manter compatibilidade com chamadas antigas
+function alterarPinGestor(gid){ alterarSenhaGestor(gid); }
 /* ============== SUPER ADMIN (oculto) ============== */
 (function(){
   let _clicks=0, _timer=null;
@@ -2111,10 +2200,11 @@ document.getElementById('superOk').addEventListener('click',()=>{
     }
   }
   sessao={papel:'super',nome:'Admin'};
-  salvarSessao(); fecharSuperModal(); aplicarPapel();
+  salvarSessao(); fecharSuperModal(); fecharLoginGate(); aplicarPapel();
   setTab('escala');
 });
 /* ============== FIM SUPER ADMIN ============== */
+// (old login modal listeners removed — replaced by loginGate)
 function copyLinkColab(id){
   const c=state.colaboradores.find(x=>x.id===id); if(!c)return;
   const BASE=window.location.origin+window.location.pathname;
@@ -2133,36 +2223,7 @@ function copiarMsgWA(id){
     mostrarToast('💬 Mensagem de '+primeiroNome+' copiada! Cole no WhatsApp.','#1b5e20');
   }).catch(()=>{ alert('Mensagem para '+primeiroNome+':\n\n'+msg); });
 }
-document.getElementById('btnLogin').addEventListener('click',abrirLogin);
-document.getElementById('loginCancel').addEventListener('click',fecharLogin);
-document.getElementById('loginPapel').addEventListener('change',toggleLoginColab);
-loginModal.addEventListener('click',e=>{ if(e.target===loginModal) fecharLogin(); });
-document.getElementById('loginPin').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('loginOk').click(); });
-document.getElementById('loginOk').addEventListener('click',()=>{
-  const papel=document.getElementById('loginPapel').value;
-  if(papel==='colaborador'){
-    sessao={papel:'colaborador',colabId:document.getElementById('loginColab').value};
-  } else {
-    const gid=document.getElementById('loginGestor').value;
-    const g=(state.gestores||[]).find(x=>x.id===gid);
-    if(!g){ alert('Gestor não encontrado.'); return; }
-    if(!g.pin){
-      // Primeiro acesso — define PIN
-      const novo=prompt('🔐 Primeiro acesso de '+g.nome+'!\nDefina seu PIN (4 a 6 dígitos numéricos):','');
-      if(!novo||!/^\d{4,6}$/.test(novo)){ alert('PIN inválido. Use 4 a 6 dígitos.'); return; }
-      const conf=prompt('Confirme o PIN:','');
-      if(conf!==novo){ alert('PINs não coincidem.'); return; }
-      g.pin=novo; save();
-      alert('✅ PIN definido! Guarde-o com segurança.');
-    } else {
-      const inputPin=document.getElementById('loginPin').value;
-      if(inputPin!==g.pin){ alert('❌ PIN incorreto. Tente novamente.'); document.getElementById('loginPin').value=''; document.getElementById('loginPin').focus(); return; }
-    }
-    sessao={papel:'gestor',gestorId:gid,nome:g.nome};
-  }
-  salvarSessao(); fecharLogin(); aplicarPapel();
-  setTab(papel==='colaborador'?'minha':'escala');
-});
+// (old loginModal listeners replaced by loginGate)
 
 /* ============== IMAGEM WHATSAPP ============== */
 let _previewCanvas=null; // canvas gerado, aguardando confirmação do usuário
@@ -2297,6 +2358,8 @@ renderEscala();
 if(!checkURLToken()){
   aplicarPapel();
   if(ehColab()) setTab('minha');
+  // Mostra tela de login se não autenticado
+  if(precisaLogin()) abrirLoginGate();
 }
 refreshInbox();
 // Carrega do Supabase em background e ativa sync em tempo real
