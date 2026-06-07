@@ -249,32 +249,29 @@
     th.col-n{width:72px}
     table.escala{font-size:10px;min-width:420px}
   }
-  /* ---- Dica de rotação (retrato mobile) ---- */
-  #rotateHint{display:none;align-items:center;justify-content:center;gap:8px;background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:9px 14px;margin-bottom:10px;font-size:12.5px;font-weight:600;color:#7a5a00}
-  #rotateHint .rot-icon{font-size:20px;animation:rotAnim 2s ease-in-out infinite}
-  @keyframes rotAnim{0%,100%{transform:rotate(0deg)}40%{transform:rotate(90deg)}60%{transform:rotate(90deg)}}
-  @media(max-width:640px) and (orientation:portrait){
-    #rotateHint{display:flex}
-  }
-  /* ---- Modo paisagem no telefone — tela cheia da escala ---- */
-  #landscapeBack{display:none}
-  @media(orientation:landscape) and (max-height:500px){
-    header.top{display:none!important}
-    .tabs{display:none!important}
-    .toolbar{display:none!important}
-    .legend{display:none!important}
-    .avisos{display:none!important}
-    #escalaInbox{display:none!important}
-    #rotateHint{display:none!important}
-    main{padding:0!important;max-width:none}
-    #tab-escala{padding:0}
-    .card{margin-bottom:0!important;border-radius:0!important;box-shadow:none!important}
-    #escalaWrap .card{overflow-x:auto}
-    table.escala{font-size:12px;min-width:0;width:100%}
-    table.escala th,table.escala td{padding:3px 5px}
-    .week-bar{font-size:13px;padding:5px;border-radius:0}
-    #landscapeBack{display:flex!important;position:fixed;bottom:10px;right:12px;z-index:100;background:rgba(0,0,0,.45);color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;align-items:center;gap:6px}
-  }
+  /* ---- Dica de rotação (retrato mobile — controlada por JS) ---- */
+  #rotateHint{display:none;align-items:center;justify-content:center;gap:10px;background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:10px 16px;margin-bottom:10px;font-size:13px;font-weight:600;color:#7a5a00}
+  #rotateHint .rot-icon{font-size:22px;animation:rotAnim 2.5s ease-in-out infinite}
+  @keyframes rotAnim{0%,30%{transform:rotate(0deg)}55%,80%{transform:rotate(90deg)}100%{transform:rotate(0deg)}}
+  body.mostra-rotate-hint #rotateHint{display:flex}
+  /* ---- Modo paisagem mobile — apenas tabela, tela cheia ---- */
+  #landscapeBack{display:none;position:fixed;bottom:12px;right:14px;z-index:9999;background:rgba(0,0,0,.5);color:#fff;border:none;border-radius:20px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;align-items:center;gap:6px;backdrop-filter:blur(4px)}
+  body.paisagem-mobile #landscapeBack{display:flex}
+  body.paisagem-mobile header.top{display:none!important}
+  body.paisagem-mobile .tabs{display:none!important}
+  body.paisagem-mobile .toolbar{display:none!important}
+  body.paisagem-mobile .legend{display:none!important}
+  body.paisagem-mobile .avisos{display:none!important}
+  body.paisagem-mobile #escalaInbox{display:none!important}
+  body.paisagem-mobile #rotateHint{display:none!important}
+  body.paisagem-mobile .print-only{display:none!important}
+  body.paisagem-mobile main{padding:0!important;max-width:none!important}
+  body.paisagem-mobile #tab-minha,body.paisagem-mobile #tab-troca,body.paisagem-mobile #tab-colab{display:none!important}
+  body.paisagem-mobile #tab-escala{display:block!important}
+  body.paisagem-mobile .card{border-radius:0!important;box-shadow:none!important;margin:0!important;overflow-x:auto}
+  body.paisagem-mobile .week-bar{border-radius:0!important;font-size:13px;padding:5px 10px}
+  body.paisagem-mobile table.escala{font-size:12px;min-width:0;width:100%}
+  body.paisagem-mobile table.escala th,body.paisagem-mobile table.escala td{padding:3px 5px}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
@@ -318,8 +315,8 @@
       <button class="btn gestor-only" id="btnDelWeek" title="Remove a semana atual" style="color:#c0392b">🗑️ Remover semana</button>
       <span class="spacer"></span>
       <span id="editHint" class="hint" style="margin:0;display:none">✏️ Edição ativa: clique numa célula para alternar (vazio → X → CC). Duplo-clique para texto livre.</span>
-      <button class="btn" id="btnWhatsApp" title="Gera imagem PNG da escala para enviar pelo WhatsApp">📱 Imagem WhatsApp</button>
-      <button class="btn" id="btnPrint">🖨️ Imprimir</button>
+      <button class="btn somente-gestor" id="btnWhatsApp" title="Gera imagem PNG da escala para enviar pelo WhatsApp">📱 Imagem WhatsApp</button>
+      <button class="btn somente-gestor" id="btnPrint">🖨️ Imprimir</button>
     </div>
     <div class="legend">
       <div class="it"><span class="sw" style="background:var(--manha)"></span> Manhã</div>
@@ -1252,6 +1249,7 @@ function setTab(name){
   if(name==='minha') renderMinha();
   if(name==='colab') renderColab();
   if(name==='troca') renderTrocas();
+  if(typeof checkOrientation==='function') checkOrientation();
 }
 function setEditing(v){
   editing=v;
@@ -2382,6 +2380,24 @@ async function gerarImagemWhatsApp(){
   }
 }
 
+/* ============== ORIENTAÇÃO MOBILE ============== */
+function checkOrientation(){
+  const w=window.innerWidth, h=window.innerHeight;
+  const isMobile = Math.min(w,h) <= 540; // lado curto ≤ 540px = telefone
+  const isLandscape = w > h;
+  const isPaisagem = isMobile && isLandscape;
+  document.body.classList.toggle('paisagem-mobile', isPaisagem);
+  // Mostra dica de rotação: mobile retrato + aba escala ativa
+  const tabEscalaAtiva = document.getElementById('tab-escala') && document.getElementById('tab-escala').style.display !== 'none';
+  document.body.classList.toggle('mostra-rotate-hint', isMobile && !isLandscape && tabEscalaAtiva);
+}
+window.addEventListener('resize', checkOrientation);
+window.addEventListener('orientationchange', ()=>{ setTimeout(checkOrientation, 200); });
+document.getElementById('landscapeBack').addEventListener('click', ()=>{
+  // Sugere rotação de volta — dá dica visual (não é possível forçar rotação via JS)
+  mostrarToast('↩ Gire o telefone para modo retrato','#37474f');
+});
+
 /* ============== INIT ============== */
 fillWeekSel();
 renderMeSelect();
@@ -2395,6 +2411,7 @@ if(!checkURLToken()){
   if(precisaLogin()) abrirLoginGate();
 }
 refreshInbox();
+checkOrientation(); // detecta orientação inicial
 // Carrega do Supabase em background e ativa sync em tempo real
 loadFromSupabase();
 </script>
