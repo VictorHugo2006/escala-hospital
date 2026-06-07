@@ -2381,21 +2381,31 @@ async function gerarImagemWhatsApp(){
 }
 
 /* ============== ORIENTAÇÃO MOBILE ============== */
+// Usa matchMedia — mais confiável no iOS Safari do que innerWidth/innerHeight
+const _mqLandscape = window.matchMedia('(orientation: landscape)');
+const _mqMobile    = window.matchMedia('(max-device-width: 768px)');
+
 function checkOrientation(){
-  const w=window.innerWidth, h=window.innerHeight;
-  const isMobile = Math.min(w,h) <= 540; // lado curto ≤ 540px = telefone
-  const isLandscape = w > h;
-  const isPaisagem = isMobile && isLandscape;
-  document.body.classList.toggle('paisagem-mobile', isPaisagem);
-  // Mostra dica de rotação: mobile retrato + aba escala ativa
-  const tabEscalaAtiva = document.getElementById('tab-escala') && document.getElementById('tab-escala').style.display !== 'none';
-  document.body.classList.toggle('mostra-rotate-hint', isMobile && !isLandscape && tabEscalaAtiva);
+  const isLandscape = _mqLandscape.matches;
+  // "telefone" = lado mais curto da tela física ≤ 600px
+  const isMobile = _mqMobile.matches || Math.min(screen.availWidth||screen.width, screen.availHeight||screen.height) <= 600;
+  document.body.classList.toggle('paisagem-mobile', isMobile && isLandscape);
+  // Dica: retrato + aba escala visível
+  const tabEscala = document.getElementById('tab-escala');
+  const escalaVisivel = tabEscala && tabEscala.style.display !== 'none';
+  document.body.classList.toggle('mostra-rotate-hint', isMobile && !isLandscape && escalaVisivel);
 }
+
+// iOS Safari: usar evento 'change' no matchMedia é o mais confiável
+if(_mqLandscape.addEventListener){ _mqLandscape.addEventListener('change', checkOrientation); }
+else { _mqLandscape.addListener(checkOrientation); } // Safari < 14 fallback
+
 window.addEventListener('resize', checkOrientation);
-window.addEventListener('orientationchange', ()=>{ setTimeout(checkOrientation, 200); });
+// Fallback extra para iOS: alguns dispositivos só disparam orientationchange
+window.addEventListener('orientationchange', ()=>{ setTimeout(checkOrientation, 150); setTimeout(checkOrientation, 500); });
+
 document.getElementById('landscapeBack').addEventListener('click', ()=>{
-  // Sugere rotação de volta — dá dica visual (não é possível forçar rotação via JS)
-  mostrarToast('↩ Gire o telefone para modo retrato','#37474f');
+  mostrarToast('↩ Gire o telefone para voltar ao menu','#37474f');
 });
 
 /* ============== INIT ============== */
