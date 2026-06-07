@@ -249,6 +249,32 @@
     th.col-n{width:72px}
     table.escala{font-size:10px;min-width:420px}
   }
+  /* ---- Dica de rotação (retrato mobile) ---- */
+  #rotateHint{display:none;align-items:center;justify-content:center;gap:8px;background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:9px 14px;margin-bottom:10px;font-size:12.5px;font-weight:600;color:#7a5a00}
+  #rotateHint .rot-icon{font-size:20px;animation:rotAnim 2s ease-in-out infinite}
+  @keyframes rotAnim{0%,100%{transform:rotate(0deg)}40%{transform:rotate(90deg)}60%{transform:rotate(90deg)}}
+  @media(max-width:640px) and (orientation:portrait){
+    #rotateHint{display:flex}
+  }
+  /* ---- Modo paisagem no telefone — tela cheia da escala ---- */
+  #landscapeBack{display:none}
+  @media(orientation:landscape) and (max-height:500px){
+    header.top{display:none!important}
+    .tabs{display:none!important}
+    .toolbar{display:none!important}
+    .legend{display:none!important}
+    .avisos{display:none!important}
+    #escalaInbox{display:none!important}
+    #rotateHint{display:none!important}
+    main{padding:0!important;max-width:none}
+    #tab-escala{padding:0}
+    .card{margin-bottom:0!important;border-radius:0!important;box-shadow:none!important}
+    #escalaWrap .card{overflow-x:auto}
+    table.escala{font-size:12px;min-width:0;width:100%}
+    table.escala th,table.escala td{padding:3px 5px}
+    .week-bar{font-size:13px;padding:5px;border-radius:0}
+    #landscapeBack{display:flex!important;position:fixed;bottom:10px;right:12px;z-index:100;background:rgba(0,0,0,.45);color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;align-items:center;gap:6px}
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
@@ -278,6 +304,10 @@
 <main>
   <!-- ESCALA -->
   <section id="tab-escala">
+    <div id="rotateHint">
+      <span class="rot-icon">📱</span>
+      <span>Gire o telefone para ver a escala completa</span>
+    </div>
     <div class="toolbar">
       <button class="btn" id="prevWeek">◀</button>
       <select id="weekSel"></select>
@@ -435,6 +465,9 @@
     </div>
   </section>
 </main>
+
+<!-- botão flutuante em modo paisagem mobile -->
+<button id="landscapeBack" title="Girar para retrato">↩ Girar</button>
 
 <div id="genModal" class="modal-bg" style="display:none">
   <div class="modal">
