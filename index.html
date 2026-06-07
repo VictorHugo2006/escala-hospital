@@ -43,6 +43,7 @@
   body.editing .gestor-only{display:inline-flex!important}
   .user-chip{font-size:12px;font-weight:700;color:#fff;background:rgba(255,255,255,.18);padding:6px 11px;border-radius:14px;white-space:nowrap}
   .colab-mode .somente-gestor{display:none!important}
+  body:not(.gestor-mode) .somente-gestor{display:none!important}
   .colab-mode .sel-colab{display:none!important}
   .colab-mode #tabTrocaBadge.gestorbadge{display:none!important}
   .colab-painel{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);padding:14px 18px;margin-bottom:16px}
@@ -1225,7 +1226,10 @@ function fillWeekSel(){
 }
 
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>setTab(t.dataset.tab)));
-document.getElementById('btnEdit').addEventListener('click',()=>setEditing(!editing));
+document.getElementById('btnEdit').addEventListener('click',()=>{
+  if(!ehGestor()){ abrirLogin(); document.getElementById('loginPapel').value='gestor'; toggleLoginColab(); return; }
+  setEditing(!editing);
+});
 document.getElementById('weekSel').addEventListener('change',e=>{curWeek=+e.target.value;renderEscala();});
 document.getElementById('prevWeek').addEventListener('click',()=>{if(curWeek>0){curWeek--;fillWeekSel();renderEscala();}});
 document.getElementById('nextWeek').addEventListener('click',()=>{if(curWeek<state.semanas.length-1){curWeek++;fillWeekSel();renderEscala();}});
@@ -2009,21 +2013,27 @@ folModal.addEventListener('click',e=>{ if(e.target===folModal) fecharFolga(); })
 
 /* ============== PAPÉIS / LOGIN ============== */
 let sessao = carregarSessao();
-function carregarSessao(){ try{ const s=JSON.parse(localStorage.getItem('escalaSessao')); if(s&&s.papel) return s; }catch(e){} return {papel:'gestor'}; }
+function carregarSessao(){ try{ const s=JSON.parse(localStorage.getItem('escalaSessao')); if(s&&s.papel) return s; }catch(e){} return {papel:'visitante'}; }
 function salvarSessao(){ try{ localStorage.setItem('escalaSessao', JSON.stringify(sessao)); }catch(e){} }
 function ehColab(){ return sessao.papel==='colaborador' && state.colaboradores.some(c=>c.id===sessao.colabId); }
 function ehSuper(){ return sessao.papel==='super'; }
+function ehGestor(){ return (sessao.papel==='gestor' && !!sessao.gestorId) || ehSuper(); }
 function aplicarPapel(){
   const colab=ehColab();
+  const gestor=ehGestor();
   document.body.classList.toggle('colab-mode', colab);
+  document.body.classList.toggle('gestor-mode', gestor);
+  if(!gestor && editing) setEditing(false);
   if(colab && editing) setEditing(false);
   const chip=document.getElementById('userChip');
   if(chip){
     if(colab) chip.textContent='👤 '+nomeColab(sessao.colabId)+' · Colaborador';
     else if(ehSuper()) chip.textContent='🛡️ Gestão';
-    else chip.textContent='🛡️ '+(sessao.nome||'Gestor')+' · Gestão';
+    else if(gestor) chip.textContent='🛡️ '+(sessao.nome||'Gestor')+' · Gestão';
+    else chip.textContent='';
   }
-  const lb=document.getElementById('btnLogin'); if(lb) lb.textContent = colab?'🔁 Trocar usuário':'👤 Entrar';
+  const lb=document.getElementById('btnLogin');
+  if(lb) lb.textContent = colab?'🔁 Trocar usuário':'👤 Entrar';
   if(colab){
     const me=document.getElementById('meSel'); if(me) me.value=sessao.colabId;
     const eu=document.getElementById('euSel'); if(eu) eu.value=sessao.colabId;
