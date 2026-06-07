@@ -160,6 +160,10 @@
   .guia h3{color:var(--verde-d);margin-bottom:4px}
   .guia code{background:#eef2f5;padding:2px 6px;border-radius:4px;font-weight:700}
   .hint{font-size:12px;color:#7a8893;margin:6px 0 16px}
+  .pin-input{font-size:22px;letter-spacing:8px;text-align:center;width:140px;padding:8px;border:2px solid #c4ccd2;border-radius:8px;font-family:monospace}
+  .pin-input:focus{border-color:var(--verde);outline:none}
+  .link-colab{font-size:11px;color:#546e7a;background:#f4f7f9;border:1px solid #dde2e6;border-radius:6px;padding:3px 7px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle}
+  .invite-section{background:#e8f5e9;border:1.5px solid #a5d6a7;border-radius:10px;padding:12px 16px;margin:10px 0}
   .print-only{display:none}
   @media print{
     @page{ size: A4 landscape; margin: 7mm; }
@@ -433,15 +437,19 @@
 <div id="loginModal" class="modal-bg" style="display:none">
   <div class="modal">
     <h3>👤 Entrar no sistema</h3>
-    <p>Escolha como deseja acessar. <i>(Protótipo sem senha — na versão final cada pessoa terá login próprio.)</i></p>
+    <p id="loginDesc" style="font-size:13px;color:#5c6b75;margin:0 0 12px">Acesse com seu perfil. Gestores precisam de PIN.</p>
     <div class="fld"><label>Acessar como</label>
-      <select id="loginPapel"><option value="colaborador">Colaborador</option><option value="gestor">Gestor</option></select>
+      <select id="loginPapel"><option value="colaborador">Colaborador</option><option value="gestor">🛡️ Gestor</option></select>
     </div>
     <div class="fld" id="loginColabWrap"><label>Selecione seu nome</label><select id="loginColab"></select></div>
-    <div class="fld" id="loginGestorWrap"><label>Selecione o gestor</label><select id="loginGestor"></select></div>
+    <div class="fld" id="loginGestorWrap" style="display:none"><label>Selecione o gestor</label><select id="loginGestor"></select></div>
+    <div class="fld" id="loginPinWrap" style="display:none;align-items:center">
+      <label>PIN de acesso (4–6 dígitos)</label>
+      <input type="password" id="loginPin" class="pin-input" maxlength="6" placeholder="••••••" inputmode="numeric" autocomplete="current-password">
+    </div>
     <div class="modal-actions">
       <button class="btn" id="loginCancel">Cancelar</button>
-      <button class="btn primary" id="loginOk">Entrar</button>
+      <button class="btn primary" id="loginOk">Entrar →</button>
     </div>
   </div>
 </div>
@@ -668,6 +676,22 @@ let curWeek = 0;
 let editing = false;
 
 function deepClone(o){return JSON.parse(JSON.stringify(o));}
+function gerarToken(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
+// Auto-login por link pessoal (?c=TOKEN)
+function checkURLToken(){
+  const params=new URLSearchParams(window.location.search);
+  const token=params.get('c');
+  if(!token) return false;
+  const c=state.colaboradores.find(x=>x.token===token);
+  if(c){
+    sessao={papel:'colaborador',colabId:c.id};
+    salvarSessao(); aplicarPapel(); setTab('minha');
+    history.replaceState(null,'',window.location.pathname);
+    mostrarToast('👋 Bem-vindo(a), '+c.nome.split(' ')[0]+'!','#1b5e20');
+    return true;
+  }
+  return false;
+}
 function defaultState(){
   return {colaboradores:deepClone(COLAB_PADRAO), escala:deepClone(ESCALA_PADRAO), semanas:deepClone(SEMANAS_PADRAO), trocas:[], trocaCells:{}, gestores:deepClone(GESTORES_PADRAO), config:{antecedenciaDias:60}, folgas:[], folgaCells:{}, remanejoCells:{}, feriados:deepClone(FERIADOS_PADRAO), ferias:[]};
 }
@@ -697,6 +721,10 @@ function migrar(s){
   if(!s.remanejoCells) s.remanejoCells={};
   if(!Array.isArray(s.feriados)) s.feriados=[];
   if(!Array.isArray(s.ferias)) s.ferias=[];
+  if(!s._migs.tokensColab){
+    s.colaboradores.forEach(c=>{ if(!c.token) c.token=gerarToken(); });
+    s._migs.tokensColab=true;
+  }
   if(!s._migs.feriadosBR2026){
     FERIADOS_PADRAO.forEach(f=>{ if(!s.feriados.some(x=>x.dataISO===f.dataISO)) s.feriados.push(deepClone(f)); });
     s._migs.feriadosBR2026=true;
@@ -942,11 +970,32 @@ function renderColab(){
   if(editing){
     html+='<div class="addform"><div class="fld"><label>Nome do gestor</label><input type="text" id="newGestor" placeholder="Nome"></div><button class="btn primary" id="btnAddGestor">+ Adicionar gestor</button></div>';
   }
-  html+='<table class="colab"><thead><tr><th>Nome</th>'+(editing?'<th style="width:90px">Ações</th>':'')+'</tr></thead><tbody>';
+  html+='<table class="colab"><thead><tr><th>Nome</th><th>PIN</th>'+(editing?'<th style="width:130px">Ações</th>':'')+'</tr></thead><tbody>';
   (state.gestores||[]).forEach(g=>{
-    html+='<tr data-gid="'+g.id+'"><td><b>'+g.nome+'</b></td>'+(editing?'<td><button class="iconbtn" data-gact="del" title="Remover">🗑️</button></td>':'')+'</tr>';
+    const pinStatus=g.pin?'<span class="pill" style="background:#e8f5e9;color:#2e7d32;font-size:11px">✅ Definido</span>':'<span class="pill" style="background:#fff3e0;color:#e65100;font-size:11px">⚠️ Não definido</span>';
+    html+='<tr data-gid="'+g.id+'"><td><b>'+g.nome+'</b></td><td>'+pinStatus+'</td>';
+    if(editing) html+='<td><div style="display:flex;gap:4px"><button class="btn mini" data-gact="pin" title="Alterar PIN" style="font-size:11px;padding:3px 7px;background:#e3f2fd;border-color:#90cae8;color:#1565c0">🔐 PIN</button><button class="iconbtn" data-gact="del" title="Remover">🗑️</button></div></td>';
+    html+='</tr>';
   });
   html+='</tbody></table>';
+  // ---- Links de convite (visível para gestores mesmo sem editing) ----
+  if(!ehColab()){
+    const BASE=window.location.origin+window.location.pathname;
+    html+='<h2 style="font-size:18px;margin:28px 0 10px">🔗 Links de Acesso dos Colaboradores</h2>';
+    html+='<p class="hint" style="margin-top:0">Envie o link personalizado a cada colaborador. Ao clicar, o acesso é feito automaticamente sem precisar de senha.</p>';
+    html+='<div class="invite-section">';
+    html+='<table class="colab" style="font-size:13px"><thead><tr><th>Colaborador</th><th>Link pessoal</th><th style="width:160px">Enviar</th></tr></thead><tbody>';
+    state.colaboradores.forEach(c=>{
+      const url=BASE+'?c='+c.token;
+      html+='<tr><td><b>'+c.nome+'</b><br><span style="font-size:11px;color:#7a8893">'+PERIODOS[c.periodo].nome+'</span></td>';
+      html+='<td><span class="link-colab" id="link-'+c.id+'" title="'+url+'">'+url+'</span></td>';
+      html+='<td><div style="display:flex;gap:4px;flex-wrap:wrap">';
+      html+='<button class="btn mini" onclick="copyLinkColab(\''+c.id+'\')" style="font-size:11px;padding:3px 8px;background:#e8f4fd;border-color:#90cce8;color:#0d47a1">📋 Copiar</button>';
+      html+='<button class="btn mini" onclick="copiarMsgWA(\''+c.id+'\')" style="font-size:11px;padding:3px 8px;background:#e8f5e9;border-color:#a5d6a7;color:#1b5e20">💬 WhatsApp</button>';
+      html+='</div></td></tr>';
+    });
+    html+='</tbody></table></div>';
+  }
   // ---- Feriados ----
   html+='<h2 style="font-size:18px;margin:22px 0 10px">📅 Feriados</h2>';
   html+='<p class="hint" style="margin-top:0">Datas de feriado entram na grade com o aviso <b style="color:#c0392b">FERIADO</b> e no <b>rodízio de feriados</b> das próximas escalas geradas.</p>';
@@ -1000,8 +1049,12 @@ function renderColab(){
     document.querySelectorAll('#colabWrap .iconbtn[data-fact]').forEach(b=>{
       b.addEventListener('click',()=>{ delFeriado(b.closest('tr').dataset.fid); });
     });
-    document.querySelectorAll('#colabWrap .iconbtn[data-gact]').forEach(b=>{
-      b.addEventListener('click',()=>{ delGestor(b.closest('tr').dataset.gid); });
+    document.querySelectorAll('#colabWrap [data-gact]').forEach(b=>{
+      b.addEventListener('click',()=>{
+        const gid=b.closest('tr').dataset.gid;
+        if(b.dataset.gact==='pin') alterarPinGestor(gid);
+        else delGestor(gid);
+      });
     });
     document.querySelectorAll('#colabWrap .iconbtn[data-fvact]').forEach(b=>{
       b.addEventListener('click',()=>{ delFerias(b.closest('tr').dataset.fvid); });
@@ -1909,30 +1962,79 @@ function fillLoginColab(){ document.getElementById('loginColab').innerHTML=state
 function fillLoginGestor(){ document.getElementById('loginGestor').innerHTML=(state.gestores||[]).map(g=>'<option value="'+g.id+'">'+g.nome+'</option>').join(''); }
 function toggleLoginColab(){
   const ges=document.getElementById('loginPapel').value==='gestor';
-  document.getElementById('loginColabWrap').style.display = ges?'none':'';
-  document.getElementById('loginGestorWrap').style.display = ges?'':'none';
+  document.getElementById('loginColabWrap').style.display=ges?'none':'';
+  document.getElementById('loginGestorWrap').style.display=ges?'':'none';
+  document.getElementById('loginPinWrap').style.display=ges?'flex':'none';
+  if(ges) setTimeout(()=>document.getElementById('loginPin').focus(),80);
 }
 function abrirLogin(){
   fillLoginColab(); fillLoginGestor();
-  document.getElementById('loginPapel').value=sessao.papel;
+  document.getElementById('loginPapel').value=sessao.papel==='gestor'?'gestor':'colaborador';
   if(sessao.colabId) document.getElementById('loginColab').value=sessao.colabId;
   if(sessao.gestorId) document.getElementById('loginGestor').value=sessao.gestorId;
+  document.getElementById('loginPin').value='';
   toggleLoginColab();
   loginModal.style.display='flex';
 }
 function fecharLogin(){ loginModal.style.display='none'; }
+function alterarPinGestor(gid){
+  const g=(state.gestores||[]).find(x=>x.id===gid); if(!g) return;
+  if(g.pin){
+    const atual=prompt('PIN atual de '+g.nome+':','');
+    if(atual!==g.pin){ alert('PIN incorreto.'); return; }
+  }
+  const novo=prompt('Novo PIN (4 a 6 dígitos numéricos):','');
+  if(!novo||!/^\d{4,6}$/.test(novo)){ alert('PIN inválido. Use 4 a 6 dígitos.'); return; }
+  const conf=prompt('Confirme o novo PIN:','');
+  if(conf!==novo){ alert('PINs não coincidem.'); return; }
+  g.pin=novo; save();
+  alert('✅ PIN de '+g.nome+' atualizado com sucesso!');
+  renderColab();
+}
+function copyLinkColab(id){
+  const c=state.colaboradores.find(x=>x.id===id); if(!c)return;
+  const BASE=window.location.origin+window.location.pathname;
+  const url=BASE+'?c='+c.token;
+  navigator.clipboard.writeText(url).then(()=>{
+    mostrarToast('🔗 Link de '+c.nome.split(' ')[0]+' copiado!','#1b5e20');
+  }).catch(()=>{ prompt('Copie o link abaixo:',url); });
+}
+function copiarMsgWA(id){
+  const c=state.colaboradores.find(x=>x.id===id); if(!c)return;
+  const BASE=window.location.origin+window.location.pathname;
+  const url=BASE+'?c='+c.token;
+  const primeiroNome=c.nome.split(' ')[0];
+  const msg='Olá, '+primeiroNome+'! 🏥\nAgora temos um sistema online de escala de plantões do Raio-X do Hospital Santa Catarina.\n\nClique no link abaixo para acessar seu painel:\n👉 '+url+'\n\n📌 Salve nos favoritos para acessar sempre!';
+  navigator.clipboard.writeText(msg).then(()=>{
+    mostrarToast('💬 Mensagem de '+primeiroNome+' copiada! Cole no WhatsApp.','#1b5e20');
+  }).catch(()=>{ alert('Mensagem para '+primeiroNome+':\n\n'+msg); });
+}
 document.getElementById('btnLogin').addEventListener('click',abrirLogin);
 document.getElementById('loginCancel').addEventListener('click',fecharLogin);
 document.getElementById('loginPapel').addEventListener('change',toggleLoginColab);
 loginModal.addEventListener('click',e=>{ if(e.target===loginModal) fecharLogin(); });
+document.getElementById('loginPin').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('loginOk').click(); });
 document.getElementById('loginOk').addEventListener('click',()=>{
   const papel=document.getElementById('loginPapel').value;
   if(papel==='colaborador'){
-    sessao = {papel:'colaborador', colabId:document.getElementById('loginColab').value};
+    sessao={papel:'colaborador',colabId:document.getElementById('loginColab').value};
   } else {
     const gid=document.getElementById('loginGestor').value;
     const g=(state.gestores||[]).find(x=>x.id===gid);
-    sessao = {papel:'gestor', gestorId:gid, nome:g?g.nome:'Gestor'};
+    if(!g){ alert('Gestor não encontrado.'); return; }
+    if(!g.pin){
+      // Primeiro acesso — define PIN
+      const novo=prompt('🔐 Primeiro acesso de '+g.nome+'!\nDefina seu PIN (4 a 6 dígitos numéricos):','');
+      if(!novo||!/^\d{4,6}$/.test(novo)){ alert('PIN inválido. Use 4 a 6 dígitos.'); return; }
+      const conf=prompt('Confirme o PIN:','');
+      if(conf!==novo){ alert('PINs não coincidem.'); return; }
+      g.pin=novo; save();
+      alert('✅ PIN definido! Guarde-o com segurança.');
+    } else {
+      const inputPin=document.getElementById('loginPin').value;
+      if(inputPin!==g.pin){ alert('❌ PIN incorreto. Tente novamente.'); document.getElementById('loginPin').value=''; document.getElementById('loginPin').focus(); return; }
+    }
+    sessao={papel:'gestor',gestorId:gid,nome:g.nome};
   }
   salvarSessao(); fecharLogin(); aplicarPapel();
   setTab(papel==='colaborador'?'minha':'escala');
@@ -2067,8 +2169,11 @@ fillWeekSel();
 renderMeSelect();
 fillEuSel();
 renderEscala();
-aplicarPapel();
-if(ehColab()) setTab('minha');
+// Verifica se há token de colaborador na URL (?c=TOKEN)
+if(!checkURLToken()){
+  aplicarPapel();
+  if(ehColab()) setTab('minha');
+}
 refreshInbox();
 // Carrega do Supabase em background e ativa sync em tempo real
 loadFromSupabase();
