@@ -73,10 +73,14 @@
   .mk-txt{font-size:11px;font-weight:700;color:#37434d}
   td.cell .cc{font-size:11px;color:#c0392b;font-weight:700}
   td.span{font-weight:700;color:var(--verde-d);font-style:italic;background:var(--especial)}
+  td.span.ferias-cel{background:#c8e6f7;color:#0d47a1;font-style:normal;font-weight:700}
   tr.sep td{height:16px;padding:0;background:#cfd8de;border:none;border-top:2px solid #6b7a85;border-bottom:2px solid #6b7a85}
   tr.foot td{background:#eef2f5;font-weight:700;font-size:11.5px;color:#5c6b75}
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:60;padding:16px}
   .modal{background:#fff;border-radius:14px;padding:22px 26px;width:min(440px,94vw);box-shadow:0 12px 44px rgba(0,0,0,.3)}
+  #imgPreviewModal .modal{width:min(960px,96vw);max-height:92vh;display:flex;flex-direction:column;padding:18px 20px}
+  #imgPreviewModal .prev-scroll{overflow-y:auto;flex:1 1 auto;border:1px solid #dde2e6;border-radius:8px;background:#e8eaed;display:flex;align-items:flex-start;justify-content:center;padding:8px}
+  #imgPreviewModal .prev-scroll img{max-width:100%;display:block;border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,.18)}
   .modal h3{margin:0 0 6px;color:var(--verde-d);font-size:18px}
   .modal p{margin:0 0 10px;font-size:13px;color:#5c6b75}
   .genrow{display:flex;gap:8px;align-items:center;margin:6px 0 12px}
@@ -156,15 +160,15 @@
   .guia h3{color:var(--verde-d);margin-bottom:4px}
   .guia code{background:#eef2f5;padding:2px 6px;border-radius:4px;font-weight:700}
   .hint{font-size:12px;color:#7a8893;margin:6px 0 16px}
+  .print-only{display:none}
   @media print{
     @page{ size: A4 landscape; margin: 7mm; }
     *{ -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; }
     html,body{height:100%}
     body{display:flex;flex-direction:column;background:#fff}
-    .tabs,.toolbar,header.top button,.avisos,.legend{display:none!important}
-    header.top{flex:0 0 auto;box-shadow:none;padding:5px 10px;gap:6px}
-    header.top h1{font-size:15px}
-    header.top .sub{font-size:10px}
+    .tabs,.toolbar,.avisos,.legend,#escalaInbox{display:none!important}
+    header.top{display:none!important}
+    .print-only{display:block!important}
     main{flex:1 1 auto;min-height:0;padding:0;margin:0;max-width:none;width:100%;display:flex;flex-direction:column}
     #tab-escala{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
     #escalaWrap{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
@@ -185,6 +189,8 @@
     .day-row .dlabel{width:110px}
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 </head>
 <body>
 <header class="top">
@@ -193,6 +199,7 @@
     <div class="sub">Hospital Santa Catarina · Guia de escalas para gestores e colaboradores</div>
   </div>
   <div class="spacer"></div>
+  <span id="syncStatus" style="font-size:11px;color:rgba(255,255,255,.75);white-space:nowrap"></span>
   <span id="userChip" class="user-chip"></span>
   <button class="btn gestor-only" id="btnInbox" title="Caixa de solicitações pendentes de autorização">📨 Trocas/Exceções <span id="inboxBadge" class="badge-n" style="display:none">0</span></button>
   <button class="btn somente-gestor" id="btnEdit">🔓 Modo Gestor</button>
@@ -220,6 +227,7 @@
       <button class="btn gestor-only" id="btnDelWeek" title="Remove a semana atual" style="color:#c0392b">🗑️ Remover semana</button>
       <span class="spacer"></span>
       <span id="editHint" class="hint" style="margin:0;display:none">✏️ Edição ativa: clique numa célula para alternar (vazio → X → CC). Duplo-clique para texto livre.</span>
+      <button class="btn" id="btnWhatsApp" title="Gera imagem PNG da escala para enviar pelo WhatsApp">📱 Imagem WhatsApp</button>
       <button class="btn" id="btnPrint">🖨️ Imprimir</button>
     </div>
     <div class="legend">
@@ -231,6 +239,11 @@
       <div class="it"><span class="sw" style="background:var(--azul)"></span> Trabalha sábado</div>
       <div class="it"><span class="mk mk-x">✓</span> = plantão &nbsp;&nbsp; <span class="mk mk-x">✓</span><span class="mk mk-cc">CC</span> = Centro Cirúrgico</div>
       <div class="it"><span style="color:#c0392b;font-weight:700;font-size:12px">🔄 troca</span> = Dia Trocado (troca aprovada pelo gestor)</div>
+    </div>
+    <div id="printHeader" class="print-only" style="text-align:center;padding:6px 0 10px;border-bottom:2px solid #2e7d32;margin-bottom:8px">
+      <div style="font-size:22px;font-weight:900;letter-spacing:.5px;color:#1b5e20" id="printTitle">ESCALA DE PLANTÕES</div>
+      <div style="font-size:13px;font-weight:600;color:#37474f;margin-top:2px">Raio-X · Hospital Santa Catarina</div>
+      <div style="font-size:12px;color:#546e7a;margin-top:3px" id="printWeekLabel"></div>
     </div>
     <div id="escalaInbox"></div>
     <div id="escalaWrap"></div>
@@ -382,6 +395,21 @@
     <div class="modal-actions">
       <button class="btn" id="genCancel">Cancelar</button>
       <button class="btn primary" id="genOk">Gerar</button>
+    </div>
+  </div>
+</div>
+
+<div id="imgPreviewModal" class="modal-bg" style="display:none">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h3 style="margin:0;color:var(--verde-d);font-size:17px">📷 Pré-visualização — Escala para WhatsApp</h3>
+      <button class="iconbtn" onclick="fecharPreviewImg()" style="font-size:18px" title="Fechar">✕</button>
+    </div>
+    <div class="prev-scroll"><img id="imgPreview" src="" alt="Preview da escala"></div>
+    <div class="modal-actions" style="margin-top:14px;gap:10px">
+      <button class="btn" onclick="fecharPreviewImg()">✕ Cancelar</button>
+      <button class="btn" id="btnBaixarPNG" onclick="baixarPNGPreview()">📥 Baixar PNG</button>
+      <button class="btn primary" id="btnCopiarWA" onclick="copiarPreviewClipboard()">📋 Copiar imagem &nbsp;<span style="font-weight:400;font-size:11px;opacity:.85">(depois cole com Ctrl+V no WhatsApp)</span></button>
     </div>
   </div>
 </div>
@@ -560,6 +588,79 @@ const GESTORES_PADRAO = [
   {id:'junior',  nome:'JUNIOR'},
 ];
 
+/* ============== SUPABASE ============== */
+const SUPABASE_URL='https://tomxojnakapyvlghutxa.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvbXhvam5ha2FweXZsZ2h1dHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4Njk1NzEsImV4cCI6MjA5NjQ0NTU3MX0.u4b5W43uq7xaIDOrTCHnZ85MejuaRYfa1lWEPJ4-aW0';
+// _sb é inicializado após os scripts CDN carregarem (defer)
+let _sb=null;
+let _syncTimer=null;
+let _isSyncing=false;
+let _realtimeChannel=null;
+
+function setSyncStatus(s){
+  const el=document.getElementById('syncStatus'); if(!el) return;
+  const map={syncing:'⟳ sincronizando',ok:'☁️ salvo',error:'⚠️ offline (local)'};
+  el.textContent=map[s]||'';
+}
+function scheduleSyncSupabase(){
+  if(!_sb) return;
+  clearTimeout(_syncTimer);
+  _syncTimer=setTimeout(async()=>{
+    try{
+      _isSyncing=true;
+      setSyncStatus('syncing');
+      await _sb.from('escala_estado').upsert({id:1,dados:state,atualizado_em:new Date().toISOString()});
+      setSyncStatus('ok');
+    }catch(e){
+      setSyncStatus('error');
+      console.error('Supabase sync:',e);
+    }finally{
+      setTimeout(()=>{ _isSyncing=false; },1200);
+    }
+  },600);
+}
+async function loadFromSupabase(){
+  // Aguarda libs CDN (defer)
+  await new Promise(r=>{ if(window.supabase) return r(); const t=setInterval(()=>{ if(window.supabase){clearInterval(t);r();} },80); setTimeout(()=>{clearInterval(t);r();},6000); });
+  if(!window.supabase){ setSyncStatus('error'); return; }
+  _sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  try{
+    setSyncStatus('syncing');
+    const {data,error}=await _sb.from('escala_estado').select('dados').eq('id',1).maybeSingle();
+    if(error) throw error;
+    if(data?.dados?.colaboradores){
+      const s=data.dados;
+      if(!Array.isArray(s.semanas)||!s.semanas.length) s.semanas=deepClone(SEMANAS_PADRAO);
+      migrar(s); state=s;
+      localStorage.setItem(LSKEY,JSON.stringify(state));
+      curWeek=Math.min(curWeek,state.semanas.length-1);
+      fillWeekSel(); renderMeSelect(); fillEuSel(); renderEscala(); renderColab(); refreshInbox();
+    } else {
+      // Supabase vazio → sobe estado do localStorage
+      await _sb.from('escala_estado').upsert({id:1,dados:state,atualizado_em:new Date().toISOString()});
+    }
+    setSyncStatus('ok');
+    setupRealtimeSync();
+  }catch(e){
+    setSyncStatus('error');
+    console.warn('Supabase offline, usando localStorage:',e.message);
+  }
+}
+function setupRealtimeSync(){
+  if(!_sb||_realtimeChannel) return;
+  _realtimeChannel=_sb.channel('escala_estado_rt')
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'escala_estado'},payload=>{
+      if(_isSyncing) return; // ignora nosso próprio save
+      const remote=payload.new?.dados;
+      if(!remote?.colaboradores) return;
+      migrar(remote); state=remote;
+      localStorage.setItem(LSKEY,JSON.stringify(state));
+      curWeek=Math.min(curWeek,state.semanas.length-1);
+      fillWeekSel(); renderMeSelect(); fillEuSel(); renderEscala(); renderColab(); refreshInbox();
+      mostrarToast('🔄 Escala atualizada em tempo real','#1565c0');
+    }).subscribe();
+}
+
 /* ============== ESTADO ============== */
 const LSKEY = 'escalaHospital_v1';
 let state = load();
@@ -568,7 +669,7 @@ let editing = false;
 
 function deepClone(o){return JSON.parse(JSON.stringify(o));}
 function defaultState(){
-  return {colaboradores:deepClone(COLAB_PADRAO), escala:deepClone(ESCALA_PADRAO), semanas:deepClone(SEMANAS_PADRAO), trocas:[], trocaCells:{}, gestores:deepClone(GESTORES_PADRAO), config:{antecedenciaDias:60}, folgas:[], folgaCells:{}, remanejoCells:{}, feriados:deepClone(FERIADOS_PADRAO)};
+  return {colaboradores:deepClone(COLAB_PADRAO), escala:deepClone(ESCALA_PADRAO), semanas:deepClone(SEMANAS_PADRAO), trocas:[], trocaCells:{}, gestores:deepClone(GESTORES_PADRAO), config:{antecedenciaDias:60}, folgas:[], folgaCells:{}, remanejoCells:{}, feriados:deepClone(FERIADOS_PADRAO), ferias:[]};
 }
 // migrações pontuais sobre estado salvo (idempotentes via flag)
 function migrar(s){
@@ -595,6 +696,7 @@ function migrar(s){
   if(!s.folgaCells) s.folgaCells={};
   if(!s.remanejoCells) s.remanejoCells={};
   if(!Array.isArray(s.feriados)) s.feriados=[];
+  if(!Array.isArray(s.ferias)) s.ferias=[];
   if(!s._migs.feriadosBR2026){
     FERIADOS_PADRAO.forEach(f=>{ if(!s.feriados.some(x=>x.dataISO===f.dataISO)) s.feriados.push(deepClone(f)); });
     s._migs.feriadosBR2026=true;
@@ -607,7 +709,7 @@ function load(){
   }catch(e){}
   return defaultState();
 }
-function save(){ try{localStorage.setItem(LSKEY, JSON.stringify(state));}catch(e){} }
+function save(){ try{localStorage.setItem(LSKEY, JSON.stringify(state));}catch(e){} scheduleSyncSupabase(); }
 
 function getEntry(weekId, colabId){
   const w = state.escala[weekId] || (state.escala[weekId]={});
@@ -638,6 +740,11 @@ function feriadosDaSemana(startISO){
   (state.feriados||[]).forEach(f=>{ const diff=Math.round((new Date(f.dataISO+'T00:00:00')-start)/86400000); if(diff>=0&&diff<=6) map[diff]=f.nome||'Feriado'; });
   return map;
 }
+function updatePrintHeader(){
+  const wk=weekInfo(state.semanas[curWeek]);
+  const el=document.getElementById('printWeekLabel'); if(!el) return;
+  el.textContent='Período: '+wk.dm[0]+' a '+wk.dm[6]+' de '+new Date(wk.startISO+'T12:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+}
 function renderEscala(){
   const wk = weekInfo(state.semanas[curWeek]);
   const fer = feriadosDaSemana(wk.startISO);
@@ -663,7 +770,9 @@ function renderEscala(){
     html += '<td class="hora">'+horario+'</td>';
     html += '<td class="nome '+wc+'">'+c.nome+'</td>';
     if(isSpan(e)){
-      html += '<td class="span" colspan="7">'+e.span+'</td>';
+      const spanCls = e.ferias ? 'span ferias-cel' : 'span';
+      const spanIco = e.ferias ? '🏖️ ' : '';
+      html += '<td class="'+spanCls+'" colspan="7">'+spanIco+e.span+'</td>';
     }else{
       const d = diasOf(e);
       for(let i=0;i<7;i++){
@@ -693,6 +802,7 @@ function renderEscala(){
   html += '</tbody></table></div>';
   html += renderAvisos(curWeek);
   document.getElementById('escalaWrap').innerHTML = html;
+  updatePrintHeader();
   renderEscalaInbox();
 
   if(editing){
@@ -814,7 +924,7 @@ function renderAddForm(){
 }
 function renderColab(){
   renderAddForm();
-  let html='<table class="colab"><thead><tr><th>Nome</th><th>Horário</th><th>Período</th><th>Faz CC?</th>'+(editing?'<th style="width:90px">Ações</th>':'')+'</tr></thead><tbody>';
+  let html='<table class="colab"><thead><tr><th>Nome</th><th>Horário</th><th>Período</th><th>Faz CC?</th>'+(editing?'<th style="width:170px">Ações</th>':'')+'</tr></thead><tbody>';
   state.colaboradores.forEach(c=>{
     const fazCC = c.fazCC!==false;
     const ccCel = editing
@@ -822,7 +932,7 @@ function renderColab(){
       : (fazCC?'<span class="pill p-tarde">Sim</span>':'<span class="pill" style="background:#fde2dc;color:#c0392b">Não</span>');
     html+='<tr data-id="'+c.id+'"><td><b>'+c.nome+'</b></td><td>'+c.horario+'</td><td><span class="pill p-'+c.periodo+'">'+PERIODOS[c.periodo].nome+'</span></td><td>'+ccCel+'</td>';
     if(editing){
-      html+='<td><button class="iconbtn" data-act="edit" title="Editar">✏️</button><button class="iconbtn" data-act="del" title="Remover">🗑️</button></td>';
+      html+='<td style="white-space:nowrap"><div style="display:flex;gap:4px;align-items:center"><button class="iconbtn" data-act="edit" title="Editar">✏️</button><button class="btn mini" data-act="ferias" title="Registrar férias ou afastamento" style="font-size:11px;padding:3px 8px;background:#e8f4fd;border-color:#90cce8;color:#0d47a1">🏖️ Férias</button><button class="iconbtn" data-act="del" title="Remover">🗑️</button></div></td>';
     }
     html+='</tr>';
   });
@@ -848,12 +958,38 @@ function renderColab(){
     html+='<tr data-fid="'+f.dataISO+'"><td><b>'+f.dataISO.split('-').reverse().join('/')+'</b></td><td>'+(f.nome||'—')+'</td>'+(editing?'<td><button class="iconbtn" data-fact="del" title="Remover">🗑️</button></td>':'')+'</tr>';
   });
   html+='</tbody></table>';
+  // ---- Férias / Afastamentos ----
+  html+='<h2 style="font-size:18px;margin:22px 0 10px">🏖️ Férias / Afastamentos</h2>';
+  html+='<p class="hint" style="margin-top:0">Colaboradores em férias são <b>excluídos automaticamente</b> da geração de escala no período e aparecem na grade com a célula azul 🏖️. Para semanas já geradas, o registro também é aplicado automaticamente.</p>';
+  const feriasLista=(state.ferias||[]).slice().sort((a,b)=>a.inicio<b.inicio?-1:1);
+  if(!feriasLista.length){
+    html+='<p class="hint">Nenhuma férias ou afastamento cadastrado.</p>';
+  } else {
+    html+='<table class="colab"><thead><tr><th>Colaborador</th><th>Início</th><th>Fim</th><th>Substituto</th><th>Observação</th>'+(editing?'<th style="width:60px">Ações</th>':'')+'</tr></thead><tbody>';
+    feriasLista.forEach(f=>{
+      const c=state.colaboradores.find(x=>x.id===f.colabId);
+      const sub=f.substitutoId?state.colaboradores.find(x=>x.id===f.substitutoId):null;
+      const hoje=new Date().toISOString().split('T')[0];
+      const ativo=f.inicio<=hoje&&f.fim>=hoje;
+      html+='<tr data-fvid="'+f.id+'">';
+      html+='<td><b>'+(c?c.nome:'?')+'</b>'+(ativo?' <span class="pill p-especial" style="font-size:10px">ativo</span>':'')+'</td>';
+      html+='<td>'+f.inicio.split('-').reverse().join('/')+'</td>';
+      html+='<td>'+f.fim.split('-').reverse().join('/')+'</td>';
+      html+='<td>'+(sub?sub.nome:'<span style="color:#aaa">—</span>')+'</td>';
+      html+='<td style="font-size:12px;color:#7a8893">'+(f.observacao||'')+'</td>';
+      if(editing) html+='<td><button class="iconbtn" data-fvact="del" title="Remover">🗑️</button></td>';
+      html+='</tr>';
+    });
+    html+='</tbody></table>';
+  }
   document.getElementById('colabWrap').innerHTML=html;
   if(editing){
     document.querySelectorAll('#colabWrap .iconbtn[data-act]').forEach(b=>{
       b.addEventListener('click',()=>{
         const tr=b.closest('tr'); const id=tr.dataset.id;
-        if(b.dataset.act==='del') delColab(id); else editColab(id);
+        if(b.dataset.act==='del') delColab(id);
+        else if(b.dataset.act==='ferias') addFerias(id);
+        else editColab(id);
       });
     });
     document.querySelectorAll('#colabWrap [data-act="cc"]').forEach(b=>{
@@ -866,6 +1002,9 @@ function renderColab(){
     });
     document.querySelectorAll('#colabWrap .iconbtn[data-gact]').forEach(b=>{
       b.addEventListener('click',()=>{ delGestor(b.closest('tr').dataset.gid); });
+    });
+    document.querySelectorAll('#colabWrap .iconbtn[data-fvact]').forEach(b=>{
+      b.addEventListener('click',()=>{ delFerias(b.closest('tr').dataset.fvid); });
     });
   }
 }
@@ -1044,6 +1183,7 @@ document.getElementById('btnInbox').addEventListener('click',()=>setTab('troca')
 document.getElementById('trocaModal').addEventListener('click',e=>{ if(e.target.id==='trocaModal') fecharTroca(); });
 document.getElementById('btnPrint').addEventListener('click',()=>window.print());
 document.getElementById('btnPrintMe').addEventListener('click',()=>window.print());
+document.getElementById('btnWhatsApp').addEventListener('click', gerarImagemWhatsApp);
 document.getElementById('meSel').addEventListener('change',renderMinha);
 
 // Backup
@@ -1313,14 +1453,161 @@ function aplicarRodizioFeriados(out, iso, holidayLast, fmap){
     });
   });
 }
+/* ============== FÉRIAS / AFASTAMENTOS ============== */
+function feriasAtivasNaSemana(iso){
+  const endISO=new Date(new Date(iso+'T00:00:00').getTime()+6*86400000).toISOString().split('T')[0];
+  return (state.ferias||[]).filter(f=>f.fim>=iso&&f.inicio<=endISO);
+}
+function parseDateBR(s){
+  const p=(s||'').trim().split('/');
+  if(p.length!==3) return null;
+  const iso=p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso)?iso:null;
+}
+function fmtDayMonth(iso){
+  const d=new Date(iso+'T00:00:00');
+  return (d.getDate()+'').padStart(2,'0')+'/'+(d.getMonth()+1+'').padStart(2,'0');
+}
+function spanLabelFerias(fInicio,fFim,wStart){
+  const di=fInicio>wStart?fInicio:wStart;
+  const wEnd=new Date(new Date(wStart+'T00:00:00').getTime()+6*86400000).toISOString().split('T')[0];
+  const df=fFim<wEnd?fFim:wEnd;
+  return fmtDayMonth(di)===fmtDayMonth(df)?'Férias ('+fmtDayMonth(di)+')':'Férias ('+fmtDayMonth(di)+' a '+fmtDayMonth(df)+')';
+}
+// Retorna semanas já geradas que se sobrepõem ao período de férias
+function semanasFeriasAfetadas(inicio,fim){
+  return state.semanas.filter(sw=>{
+    const endISO=new Date(new Date(sw.startISO+'T00:00:00').getTime()+6*86400000).toISOString().split('T')[0];
+    return fim>=sw.startISO&&inicio<=endISO;
+  });
+}
+// Histórico de feriados apenas até a semana de índice upToIdx (para regeneração correta)
+function computeHolidayLastUpTo(upToIdx){
+  const holidayLast={};
+  const ferIsos=new Set((state.feriados||[]).map(f=>f.dataISO));
+  state.semanas.slice(0,upToIdx).forEach(sw=>{
+    const e=state.escala[sw.id]||{};
+    const start=new Date(sw.startISO+'T00:00:00');
+    for(let d=0;d<7;d++){
+      const dateISO=new Date(start.getTime()+d*86400000).toISOString().split('T')[0];
+      if(ferIsos.has(dateISO)){
+        state.colaboradores.forEach(c=>{
+          if(Array.isArray(e[c.id])&&e[c.id][d]) holidayLast[c.id]=dateISO;
+        });
+      }
+    }
+  });
+  return holidayLast;
+}
+// Regenera uma semana já existente respeitando as férias ativas
+function regenerarSemanaExistente(swId){
+  const swIdx=state.semanas.findIndex(x=>x.id===swId); if(swIdx<0) return;
+  const sw=state.semanas[swIdx];
+  const iso=sw.startISO;
+  const histList=state.semanas.slice(0,swIdx).map(s=>state.escala[s.id]||{});
+  const fmap=folgasMapPorData(iso);
+  const ferAtivas=feriasAtivasNaSemana(iso);
+  const ferIds=new Set(ferAtivas.map(f=>f.colabId));
+  const colabAtivos=state.colaboradores.filter(c=>!ferIds.has(c.id));
+  const holidayLast=computeHolidayLastUpTo(swIdx);
+  const out=gerarSemana(colabAtivos,histList,fmap);
+  state.colaboradores.filter(c=>ferIds.has(c.id)).forEach(c=>{out[c.id]=['','','','','','',''];});
+  aplicarRodizioFeriados(out,iso,holidayLast,fmap);
+  ferAtivas.forEach(f=>{out[f.colabId]={span:spanLabelFerias(f.inicio,f.fim,iso),ferias:true};});
+  state.escala[swId]=out;
+}
+function aplicarFeriasNaEscala(){
+  state.semanas.forEach(sw=>{
+    const ativos=feriasAtivasNaSemana(sw.startISO);
+    const ferIds=new Set(ativos.map(f=>f.colabId));
+    if(!state.escala[sw.id]) return;
+    state.colaboradores.forEach(c=>{
+      const e=state.escala[sw.id][c.id];
+      if(e&&!Array.isArray(e)&&e.ferias&&!ferIds.has(c.id)) state.escala[sw.id][c.id]=['','','','','','',''];
+    });
+    ativos.forEach(f=>{state.escala[sw.id][f.colabId]={span:spanLabelFerias(f.inicio,f.fim,sw.startISO),ferias:true};});
+  });
+}
+function perguntarRedistribuicao(semAfetadas,nomeColab,acao){
+  if(!semAfetadas.length) return false;
+  const lista=semAfetadas.slice(0,7).map(sw=>'  • '+weekInfo(sw).label).join('\n')
+    +(semAfetadas.length>7?'\n  • ... e mais '+(semAfetadas.length-7)+' semana(s)':'');
+  const verbo=acao==='add'?'foram adicionadas as férias de':'foram removidas as férias de';
+  return confirm(
+    '⚠️  ATENÇÃO — '+semAfetadas.length+' semana(s) já gerada(s) serão afetadas:\n\n'
+    +lista+'\n\n'
+    +'Deseja REDISTRIBUIR os plantões nas semanas acima?\n\n'
+    +'✅  OK → Sim, redistribuir  (recomendado)\n'
+    +'     Os colegas serão reescalados para cobrir o período em que\n'
+    +'     '+verbo+' '+nomeColab+'.\n\n'
+    +'❌  Cancelar → Não, manter como está\n'
+    +'     A escala dos colegas não muda; só a célula de '+nomeColab+' é atualizada.'
+  );
+}
+function addFerias(colabId){
+  const c=state.colaboradores.find(x=>x.id===colabId); if(!c) return;
+  const inicioStr=prompt('🏖️ FÉRIAS — '+c.nome+'\n\nData de INÍCIO (DD/MM/AAAA):','');
+  if(!inicioStr) return;
+  const fimStr=prompt('Data de FIM (DD/MM/AAAA):','');
+  if(!fimStr) return;
+  const inicio=parseDateBR(inicioStr), fim=parseDateBR(fimStr);
+  if(!inicio||!fim){ alert('Data inválida. Use o formato DD/MM/AAAA.'); return; }
+  if(inicio>fim){ alert('A data de início deve ser anterior ao fim.'); return; }
+  const subs=state.colaboradores.filter(x=>x.id!==colabId);
+  const subOpts=subs.map((x,i)=>(i+1)+'. '+x.nome).join('\n');
+  const subResp=prompt('Quem vai cobrir as férias? (número ou deixe em branco para nenhum):\n\n'+subOpts,'');
+  let substitutoId=null;
+  if(subResp&&subResp.trim()){
+    const num=parseInt(subResp.trim());
+    if(num>=1&&num<=subs.length) substitutoId=subs[num-1].id;
+    else { const found=subs.find(x=>x.nome.toUpperCase().includes(subResp.trim().toUpperCase())); if(found) substitutoId=found.id; }
+  }
+  const obs=prompt('Observação (opcional, ex.: CID, motivo):')||'';
+  if(!Array.isArray(state.ferias)) state.ferias=[];
+  // Verifica semanas já geradas ANTES de salvar
+  const semAfetadas=semanasFeriasAfetadas(inicio,fim);
+  const redistribuir=perguntarRedistribuicao(semAfetadas,c.nome.split(' ')[0],'add');
+  // Salva e aplica
+  state.ferias.push({id:'fv'+Date.now(),colabId,inicio,fim,substitutoId,observacao:obs.trim()});
+  aplicarFeriasNaEscala();
+  if(redistribuir) semAfetadas.forEach(sw=>regenerarSemanaExistente(sw.id));
+  save(); renderColab(); renderEscala();
+  const resumo=semAfetadas.length===0
+    ?'Nenhuma semana pré-gerada foi afetada.'
+    :(redistribuir
+      ?semAfetadas.length+' semana(s) redistribuída(s) com sucesso.'
+      :semAfetadas.length+' semana(s) marcadas visualmente (turnos dos colegas não alterados).');
+  alert('✅ Férias registradas!\n\n'+c.nome+' — '+inicio.split('-').reverse().join('/')+' a '+fim.split('-').reverse().join('/')+'\n'+resumo+'\n\nNas novas semanas geradas, '+c.nome.split(' ')[0]+' será excluído automaticamente do rodízio.');
+}
+function delFerias(fId){
+  const f=(state.ferias||[]).find(x=>x.id===fId); if(!f) return;
+  const c=state.colaboradores.find(x=>x.id===f.colabId);
+  if(!confirm('Remover férias de '+(c?c.nome:'?')+'\n('+f.inicio.split('-').reverse().join('/')+' a '+f.fim.split('-').reverse().join('/')+')?')) return;
+  const semAfetadas=semanasFeriasAfetadas(f.inicio,f.fim);
+  const redistribuir=perguntarRedistribuicao(semAfetadas,c?c.nome.split(' ')[0]:'colaborador','del');
+  state.ferias=state.ferias.filter(x=>x.id!==fId);
+  aplicarFeriasNaEscala();
+  if(redistribuir) semAfetadas.forEach(sw=>regenerarSemanaExistente(sw.id));
+  save(); renderColab(); renderEscala();
+}
 function gerarVarias(n){
   const holidayLast = computeHolidayLast();
   for(let k=0;k<n;k++){
     const id='w'+Date.now()+'_'+k;
     const iso=nextStartISO();
     const fmap=folgasMapPorData(iso);
-    const out=gerarSemana(state.colaboradores, state.semanas.map(sw=>state.escala[sw.id]||{}), fmap);
+    // Colaboradores de férias nesta semana ficam fora da geração
+    const ferAtivas=feriasAtivasNaSemana(iso);
+    const ferIds=new Set(ferAtivas.map(f=>f.colabId));
+    const colabAtivos=state.colaboradores.filter(c=>!ferIds.has(c.id));
+    const out=gerarSemana(colabAtivos, state.semanas.map(sw=>state.escala[sw.id]||{}), fmap);
+    // Garante entradas para todos (inclusive de férias)
+    state.colaboradores.filter(c=>ferIds.has(c.id)).forEach(c=>{ out[c.id]=['','','','','','','']; });
     aplicarRodizioFeriados(out, iso, holidayLast, fmap);
+    // Marca células de férias
+    ferAtivas.forEach(f=>{
+      out[f.colabId]={span:spanLabelFerias(f.inicio,f.fim,iso),ferias:true};
+    });
     state.escala[id]=out;
     state.semanas.push({id, startISO:iso});
     Object.keys(fmap).forEach(cid=> fmap[cid].forEach(d=>{ state.folgaCells[id+'|'+cid+'|'+d]='folga'; }));
@@ -1651,6 +1938,130 @@ document.getElementById('loginOk').addEventListener('click',()=>{
   setTab(papel==='colaborador'?'minha':'escala');
 });
 
+/* ============== IMAGEM WHATSAPP ============== */
+let _previewCanvas=null; // canvas gerado, aguardando confirmação do usuário
+let _previewFname='escala.png';
+
+function mostrarToast(msg, cor){
+  cor=cor||'#2e7d32';
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:'+cor+';color:#fff;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:700;z-index:999999;box-shadow:0 4px 20px rgba(0,0,0,.35);white-space:nowrap;pointer-events:none';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),3500);
+}
+function fecharPreviewImg(){
+  document.getElementById('imgPreviewModal').style.display='none';
+  _previewCanvas=null;
+}
+async function copiarPreviewClipboard(){
+  if(!_previewCanvas) return;
+  let copiado=false;
+  if(navigator.clipboard&&window.ClipboardItem){
+    try{
+      const blob=await new Promise(r=>_previewCanvas.toBlob(r,'image/png',1.0));
+      await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+      copiado=true;
+    }catch(e){ console.warn('Clipboard:',e.message); }
+  }
+  fecharPreviewImg();
+  if(copiado){
+    mostrarToast('✅ Imagem copiada! Cole no WhatsApp com Ctrl+V','#1b5e20');
+  } else {
+    // fallback: abre em nova aba para clicar-direito → copiar
+    const janela=window.open();
+    if(janela){
+      janela.document.write('<body style="margin:0;background:#222;display:flex;justify-content:center"><img src="'+_previewCanvas.toDataURL('image/png',1.0)+'" style="max-width:100%"></body>');
+      janela.document.close();
+      mostrarToast('🖼️ Aberta em nova aba — botão direito → Copiar imagem','#37474f');
+    } else {
+      baixarPNGPreview();
+    }
+  }
+}
+function baixarPNGPreview(){
+  if(!_previewCanvas) return;
+  const a=document.createElement('a'); a.download=_previewFname; a.href=_previewCanvas.toDataURL('image/png',1.0); a.click();
+  mostrarToast('📥 PNG salvo — anexe no WhatsApp','#37474f');
+  fecharPreviewImg();
+}
+async function gerarImagemWhatsApp(){
+  const btn=document.getElementById('btnWhatsApp');
+  if(typeof html2canvas==='undefined'){
+    alert('⚠️ Para gerar a imagem é necessário conexão com a internet.\nVerifique sua conexão e tente novamente.');
+    return;
+  }
+  if(btn){btn.disabled=true;btn.textContent='⏳ Gerando...';}
+
+  // Overlay de carregamento — oculta o container de captura do usuário
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999998;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML='<div style="background:#fff;border-radius:14px;padding:26px 38px;text-align:center;font-family:Segoe UI,Arial,sans-serif">'
+    +'<div style="font-size:32px;margin-bottom:10px">📷</div>'
+    +'<div style="font-size:16px;font-weight:700;color:#2e7d32">Gerando imagem da escala...</div>'
+    +'<div style="font-size:12px;color:#7a8893;margin-top:4px">Aguarde um instante</div></div>';
+  document.body.appendChild(overlay);
+
+  try{
+    const wk=weekInfo(state.semanas[curWeek]);
+    const wkLbl=document.getElementById('printWeekLabel');
+
+    // Container de captura (fica atrás do overlay — usuário não vê)
+    const wrap=document.createElement('div');
+    wrap.style.cssText='position:fixed;top:0;left:0;z-index:999997;background:#f4f6f8;font-family:"Segoe UI",Roboto,Arial,sans-serif;overflow:visible;padding:0';
+    document.body.appendChild(wrap);
+
+    // ── Cabeçalho colorido ──
+    const hdr=document.createElement('div');
+    hdr.style.cssText='background:#1b5e20;color:#fff;padding:14px 22px 12px;text-align:center';
+    hdr.innerHTML='<div style="font-size:20px;font-weight:900;letter-spacing:.4px">ESCALA DE PLANTÕES</div>'
+      +'<div style="font-size:12px;opacity:.88;margin-top:3px;font-weight:600">Raio-X · Hospital Santa Catarina</div>'
+      +(wkLbl?'<div style="font-size:12px;opacity:.80;margin-top:2px">'+wkLbl.textContent+'</div>':'');
+    wrap.appendChild(hdr);
+
+    // ── Tabela clonada ──
+    const tblClone=document.getElementById('escalaWrap').cloneNode(true);
+    // Remove elementos desnecessários na imagem
+    tblClone.querySelectorAll('button,input,select,.toolbar,.btn,.week-bar').forEach(el=>el.remove());
+    // Garante que o card não tenha margem extra
+    const card=tblClone.querySelector('.card');
+    if(card){ card.style.boxShadow='none'; card.style.borderRadius='0'; card.style.margin='0'; }
+    wrap.appendChild(tblClone);
+
+    // Fixa largura igual à tabela real para não truncar
+    await new Promise(r=>requestAnimationFrame(r));
+    const tblWidth=Math.max(wrap.scrollWidth, document.getElementById('escalaWrap').scrollWidth, 900);
+    wrap.style.width=tblWidth+'px';
+    await new Promise(r=>requestAnimationFrame(r));
+
+    const canvas=await html2canvas(wrap,{
+      scale:3,
+      backgroundColor:'#f4f6f8',
+      useCORS:true,
+      logging:false,
+      width:tblWidth,
+      windowWidth:tblWidth,
+    });
+
+    document.body.removeChild(wrap);
+    document.body.removeChild(overlay);
+
+    // Guarda canvas para ações do modal de preview
+    _previewCanvas=canvas;
+    _previewFname='escala-'+wk.startISO+'.png';
+
+    // Exibe modal de pré-visualização
+    document.getElementById('imgPreview').src=canvas.toDataURL('image/png',1.0);
+    document.getElementById('imgPreviewModal').style.display='flex';
+  }catch(err){
+    if(document.body.contains(overlay)) document.body.removeChild(overlay);
+    alert('Erro ao gerar imagem: '+err.message);
+    console.error(err);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='📱 Imagem WhatsApp';}
+  }
+}
+
 /* ============== INIT ============== */
 fillWeekSel();
 renderMeSelect();
@@ -1659,6 +2070,8 @@ renderEscala();
 aplicarPapel();
 if(ehColab()) setTab('minha');
 refreshInbox();
+// Carrega do Supabase em background e ativa sync em tempo real
+loadFromSupabase();
 </script>
 </body>
 </html>
