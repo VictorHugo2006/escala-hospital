@@ -199,7 +199,7 @@
 <body>
 <header class="top">
   <div>
-    <h1>🏥 Sistema de Controle de Jornada e Plantões — Raio-X HSC</h1>
+    <h1 id="appTitle">🏥 Sistema de Controle de Jornada e Plantões — Raio-X HSC</h1>
     <div class="sub">Hospital Santa Catarina · Guia de escalas para gestores e colaboradores</div>
   </div>
   <div class="spacer"></div>
@@ -399,6 +399,19 @@
     <div class="modal-actions">
       <button class="btn" id="genCancel">Cancelar</button>
       <button class="btn primary" id="genOk">Gerar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal oculto — não remover -->
+<div id="superModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.7);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:28px 32px;min-width:220px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.35)">
+    <div style="font-size:28px;margin-bottom:14px">🔐</div>
+    <input type="password" id="superPin" maxlength="8" placeholder="••••••" inputmode="numeric" autocomplete="new-password"
+      style="font-size:24px;letter-spacing:8px;text-align:center;width:140px;padding:8px;border:2px solid #c4ccd2;border-radius:8px;font-family:monospace;display:block;margin:0 auto 16px">
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button onclick="fecharSuperModal()" style="padding:8px 18px;border-radius:8px;border:1.5px solid #c4ccd2;background:#f5f5f5;cursor:pointer;font-size:14px">✕</button>
+      <button id="superOk" style="padding:8px 22px;border-radius:8px;border:none;background:#2e7d32;color:#fff;cursor:pointer;font-size:14px;font-weight:700">→</button>
     </div>
   </div>
 </div>
@@ -693,7 +706,7 @@ function checkURLToken(){
   return false;
 }
 function defaultState(){
-  return {colaboradores:deepClone(COLAB_PADRAO), escala:deepClone(ESCALA_PADRAO), semanas:deepClone(SEMANAS_PADRAO), trocas:[], trocaCells:{}, gestores:deepClone(GESTORES_PADRAO), config:{antecedenciaDias:60}, folgas:[], folgaCells:{}, remanejoCells:{}, feriados:deepClone(FERIADOS_PADRAO), ferias:[]};
+  return {colaboradores:deepClone(COLAB_PADRAO), escala:deepClone(ESCALA_PADRAO), semanas:deepClone(SEMANAS_PADRAO), trocas:[], trocaCells:{}, gestores:deepClone(GESTORES_PADRAO), config:{antecedenciaDias:60}, folgas:[], folgaCells:{}, remanejoCells:{}, feriados:deepClone(FERIADOS_PADRAO), ferias:[], superAdmin:{}};
 }
 // migrações pontuais sobre estado salvo (idempotentes via flag)
 function migrar(s){
@@ -725,6 +738,7 @@ function migrar(s){
     s.colaboradores.forEach(c=>{ if(!c.token) c.token=gerarToken(); });
     s._migs.tokensColab=true;
   }
+  if(!s.superAdmin) s.superAdmin={};
   if(!s._migs.feriadosBR2026){
     FERIADOS_PADRAO.forEach(f=>{ if(!s.feriados.some(x=>x.dataISO===f.dataISO)) s.feriados.push(deepClone(f)); });
     s._migs.feriadosBR2026=true;
@@ -1942,12 +1956,17 @@ let sessao = carregarSessao();
 function carregarSessao(){ try{ const s=JSON.parse(localStorage.getItem('escalaSessao')); if(s&&s.papel) return s; }catch(e){} return {papel:'gestor'}; }
 function salvarSessao(){ try{ localStorage.setItem('escalaSessao', JSON.stringify(sessao)); }catch(e){} }
 function ehColab(){ return sessao.papel==='colaborador' && state.colaboradores.some(c=>c.id===sessao.colabId); }
+function ehSuper(){ return sessao.papel==='super'; }
 function aplicarPapel(){
   const colab=ehColab();
   document.body.classList.toggle('colab-mode', colab);
   if(colab && editing) setEditing(false);
   const chip=document.getElementById('userChip');
-  if(chip) chip.textContent = colab ? ('👤 '+nomeColab(sessao.colabId)+' · Colaborador') : ('🛡️ '+(sessao.nome||'Gestor')+' · Gestão');
+  if(chip){
+    if(colab) chip.textContent='👤 '+nomeColab(sessao.colabId)+' · Colaborador';
+    else if(ehSuper()) chip.textContent='🛡️ Gestão';
+    else chip.textContent='🛡️ '+(sessao.nome||'Gestor')+' · Gestão';
+  }
   const lb=document.getElementById('btnLogin'); if(lb) lb.textContent = colab?'🔁 Trocar usuário':'👤 Entrar';
   if(colab){
     const me=document.getElementById('meSel'); if(me) me.value=sessao.colabId;
@@ -1991,6 +2010,45 @@ function alterarPinGestor(gid){
   alert('✅ PIN de '+g.nome+' atualizado com sucesso!');
   renderColab();
 }
+/* ============== SUPER ADMIN (oculto) ============== */
+(function(){
+  let _clicks=0, _timer=null;
+  document.getElementById('appTitle').addEventListener('click',()=>{
+    _clicks++;
+    clearTimeout(_timer);
+    _timer=setTimeout(()=>{ _clicks=0; },1800);
+    if(_clicks>=5){ _clicks=0; abrirSuperModal(); }
+  });
+})();
+function abrirSuperModal(){
+  document.getElementById('superPin').value='';
+  const m=document.getElementById('superModal');
+  m.style.display='flex';
+  setTimeout(()=>document.getElementById('superPin').focus(),80);
+}
+function fecharSuperModal(){ document.getElementById('superModal').style.display='none'; }
+document.getElementById('superModal').addEventListener('click',e=>{ if(e.target===document.getElementById('superModal')) fecharSuperModal(); });
+document.getElementById('superPin').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('superOk').click(); });
+document.getElementById('superOk').addEventListener('click',()=>{
+  const pin=document.getElementById('superPin').value;
+  if(!pin||pin.length<4){ document.getElementById('superPin').focus(); return; }
+  if(!state.superAdmin) state.superAdmin={};
+  if(!state.superAdmin.pin){
+    const conf=prompt('Confirme o PIN:','');
+    if(conf!==pin){ alert('PINs não coincidem.'); return; }
+    state.superAdmin.pin=pin; save();
+  } else {
+    if(pin!==state.superAdmin.pin){
+      document.getElementById('superPin').value='';
+      document.getElementById('superPin').focus();
+      return;
+    }
+  }
+  sessao={papel:'super',nome:'Admin'};
+  salvarSessao(); fecharSuperModal(); aplicarPapel();
+  setTab('escala');
+});
+/* ============== FIM SUPER ADMIN ============== */
 function copyLinkColab(id){
   const c=state.colaboradores.find(x=>x.id===id); if(!c)return;
   const BASE=window.location.origin+window.location.pathname;
