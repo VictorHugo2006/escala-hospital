@@ -2092,11 +2092,16 @@ function atualizaTrocaDias(){
   const eu=document.getElementById('euSel').value;
   const sem=document.getElementById('tkSemana').value;
   const para=document.getElementById('tkPara').value;
-  const opt=arr=>arr.length?arr.map(x=>'<option value="'+x.dia+'">'+DIAS[x.dia]+' — '+cellTexto(x.val)+'</option>').join(''):'<option value="">(sem plantões nesta semana)</option>';
+  const opt=arr=>arr.length?arr.map(x=>'<option value="'+x.dia+'">'+DIAS[x.dia]+' — '+cellTexto(x.val)+'</option>').join(''):'<option value="">(sem dias válidos)</option>';
   const da=document.getElementById('tkDiaA'), db=document.getElementById('tkDiaB');
   const pa=da.value, pb=db.value;                       // preserva seleção atual
-  da.innerHTML=opt(diasTrabalhados(sem,eu));
-  db.innerHTML=opt(diasTrabalhados(sem,para));
+  // diaA: dias que A trabalha E B NÃO trabalha (senão B já estaria escalado e a troca duplicaria plantão)
+  // diaB: dias que B trabalha E A NÃO trabalha (mesma razão, invertida)
+  const eA=(state.escala[sem]||{})[eu]||[], eB=(state.escala[sem]||{})[para]||[];
+  const trabA=diasTrabalhados(sem,eu).filter(x=>!(Array.isArray(eB)&&eB[x.dia]&&eB[x.dia].trim()));
+  const trabB=diasTrabalhados(sem,para).filter(x=>!(Array.isArray(eA)&&eA[x.dia]&&eA[x.dia].trim()));
+  da.innerHTML=opt(trabA);
+  db.innerHTML=opt(trabB);
   if([...da.options].some(o=>o.value===pa)) da.value=pa;
   if([...db.options].some(o=>o.value===pb)) db.value=pb;
   atualizaTkInfo();
@@ -2126,9 +2131,12 @@ function autorizarTroca(id){
   const t=state.trocas.find(x=>x.id===id); if(!t)return;
   const wk=t.semanaId, eA=state.escala[wk] && state.escala[wk][t.deId], eB=state.escala[wk] && state.escala[wk][t.paraId];
   if(Array.isArray(eA)&&Array.isArray(eB)){
+    // Troca preserva a jornada de cada um: A mantém seu tipo de plantão, só muda do diaA para o diaB.
+    // B mantém o tipo dele, só muda do diaB para o diaA. Assim as horas individuais ficam intactas.
     const valA=eA[t.diaA], valB=eB[t.diaB];
-    eB[t.diaA]=valA; eA[t.diaA]='';          // colega assume o plantão de A
-    eA[t.diaB]=valB; eB[t.diaB]='';          // A assume o plantão do colega (reposição)
+    eA[t.diaA]=''; eB[t.diaB]='';
+    eA[t.diaB]=valA;                          // A assume o dia do colega com SEU próprio tipo
+    eB[t.diaA]=valB;                          // colega assume o dia de A com SEU próprio tipo
     state.trocaCells[wk+'|'+t.paraId+'|'+t.diaA]=t.id;
     state.trocaCells[wk+'|'+t.deId+'|'+t.diaB]=t.id;
   }
