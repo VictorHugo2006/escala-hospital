@@ -583,6 +583,43 @@
   </div>
 </div>
 
+<!-- modal edição colaborador -->
+<div id="colabEditModal" class="modal-bg" style="display:none">
+  <div class="modal" style="max-width:520px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0;color:var(--verde-d)">✏️ Editar Colaborador</h3>
+      <button class="iconbtn" onclick="fecharColabEdit()" style="font-size:18px" title="Fechar">✕</button>
+    </div>
+    <div class="fld"><label>Nome Completo</label><input type="text" id="ceNomeCompleto" placeholder="Nome e sobrenome completo"></div>
+    <div class="fld"><label>Apelido <span style="font-size:11px;color:#7a8893">(exibido na escala)</span></label><input type="text" id="ceNome" placeholder="Ex.: ANA PAULA"></div>
+    <div class="fld"><label>Horário</label><input type="text" id="ceHorario" placeholder="ex.: 7h-13h" style="width:120px"></div>
+    <div class="fld"><label>Período</label><select id="cePeriodo"><option value="manha">Manhã</option><option value="tarde">Tarde</option><option value="especial">Especial</option><option value="noite">Noite</option></select></div>
+    <div class="fld"><label>Faz CC?</label><label style="font-weight:600;display:flex;align-items:center;gap:6px;height:38px"><input type="checkbox" id="ceFazCC"> Centro Cirúrgico</label></div>
+    <div class="fld"><label>Telefone / WhatsApp</label><input type="tel" id="ceTelefone" placeholder="ex.: 47 99999-9999"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharColabEdit()">Cancelar</button>
+      <button class="btn primary" onclick="salvarColabEdit()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal edição gestor -->
+<div id="gestorEditModal" class="modal-bg" style="display:none">
+  <div class="modal" style="max-width:440px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0;color:var(--verde-d)">✏️ Editar Gestor</h3>
+      <button class="iconbtn" onclick="fecharGestorEdit()" style="font-size:18px" title="Fechar">✕</button>
+    </div>
+    <div class="fld"><label>Nome Completo</label><input type="text" id="geNomeCompleto" placeholder="Nome e sobrenome completo"></div>
+    <div class="fld"><label>Apelido <span style="font-size:11px;color:#7a8893">(exibido no sistema)</span></label><input type="text" id="geNome" placeholder="Ex.: ANDREIA"></div>
+    <div class="fld"><label>Telefone / WhatsApp</label><input type="tel" id="geTelefone" placeholder="ex.: 47 99999-9999"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharGestorEdit()">Cancelar</button>
+      <button class="btn primary" onclick="salvarGestorEdit()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
 <div id="trocaModal" class="modal-bg" style="display:none">
   <div class="modal">
     <h3>🔄 Solicitar troca de plantão</h3>
@@ -775,8 +812,8 @@ const ESCALA_PADRAO = {
 };
 
 const GESTORES_PADRAO = [
-  {id:'andreia', nome:'ANDREIA'},
-  {id:'junior',  nome:'JUNIOR'},
+  {id:'andreia', nome:'ANDREIA', nomeCompleto:'', telefone:''},
+  {id:'junior',  nome:'JUNIOR',  nomeCompleto:'', telefone:''},
 ];
 
 /* ============== SUPABASE ============== */
@@ -918,6 +955,9 @@ function migrar(s){
   if(!s.superAdmin) s.superAdmin={};
   // campo senha para colaboradores (null = ainda não definiu)
   s.colaboradores.forEach(c=>{ if(!c.hasOwnProperty('senha')) c.senha=null; });
+  // novos campos: nomeCompleto e telefone
+  s.colaboradores.forEach(c=>{ if(c.nomeCompleto===undefined) c.nomeCompleto=''; if(c.telefone===undefined) c.telefone=''; });
+  (s.gestores||[]).forEach(g=>{ if(g.nomeCompleto===undefined) g.nomeCompleto=''; if(g.telefone===undefined) g.telefone=''; });
   if(!s._migs.feriadosBR2026){
     FERIADOS_PADRAO.forEach(f=>{ if(!s.feriados.some(x=>x.dataISO===f.dataISO)) s.feriados.push(deepClone(f)); });
     s._migs.feriadosBR2026=true;
@@ -1149,10 +1189,12 @@ function renderMinha(){
 function renderAddForm(){
   document.getElementById('addFormWrap').innerHTML = editing ? (
     '<div class="addform">'+
-    '<div class="fld"><label>Nome</label><input type="text" id="newNome" placeholder="Nome do colaborador"></div>'+
+    '<div class="fld"><label>Nome Completo</label><input type="text" id="newNomeCompleto" placeholder="Nome e sobrenome completo"></div>'+
+    '<div class="fld"><label>Apelido <span style="font-size:11px;color:#7a8893">(exibido na escala)</span></label><input type="text" id="newNome" placeholder="Ex.: ANA PAULA"></div>'+
     '<div class="fld"><label>Horário</label><input type="text" id="newHorario" placeholder="ex.: 7h-13h" style="width:120px"></div>'+
     '<div class="fld"><label>Período</label><select id="newPeriodo"><option value="manha">Manhã</option><option value="tarde">Tarde</option><option value="especial">Especial</option><option value="noite">Noite</option></select></div>'+
     '<div class="fld"><label>Faz CC?</label><label style="font-weight:600;display:flex;align-items:center;gap:6px;height:38px"><input type="checkbox" id="newFazCC" checked> Centro Cirúrgico</label></div>'+
+    '<div class="fld"><label>Telefone / WhatsApp</label><input type="tel" id="newTelefone" placeholder="ex.: 47 99999-9999"></div>'+
     '<button class="btn primary" id="btnAddColab">+ Adicionar</button>'+
     '</div>'
   ) : '<p class="hint">🔒 Ative o <b>Modo Gestor</b> para adicionar, editar ou remover colaboradores.</p>';
@@ -1160,13 +1202,15 @@ function renderAddForm(){
 }
 function renderColab(){
   renderAddForm();
-  let html='<table class="colab"><thead><tr><th>Nome</th><th>Horário</th><th>Período</th><th>Faz CC?</th>'+(editing?'<th style="width:170px">Ações</th>':'')+'</tr></thead><tbody>';
+  let html='<table class="colab"><thead><tr><th>Apelido</th><th>Nome Completo</th><th>Telefone</th><th>Horário</th><th>Período</th><th>Faz CC?</th>'+(editing?'<th style="width:170px">Ações</th>':'')+'</tr></thead><tbody>';
   state.colaboradores.forEach(c=>{
     const fazCC = c.fazCC!==false;
     const ccCel = editing
       ? '<button class="btn mini '+(fazCC?'ok':'no')+'" data-act="cc">'+(fazCC?'✓ Sim':'✗ Não')+'</button>'
       : (fazCC?'<span class="pill p-tarde">Sim</span>':'<span class="pill" style="background:#fde2dc;color:#c0392b">Não</span>');
-    html+='<tr data-id="'+c.id+'"><td><b>'+c.nome+'</b></td><td>'+c.horario+'</td><td><span class="pill p-'+c.periodo+'">'+PERIODOS[c.periodo].nome+'</span></td><td>'+ccCel+'</td>';
+    const nomeCompletoCell = c.nomeCompleto ? c.nomeCompleto : '<span style="color:#aaa">—</span>';
+    const telefoneCell = c.telefone ? '<a href="https://wa.me/55'+c.telefone.replace(/\D/g,'')+'" target="_blank" style="color:#005E51;text-decoration:none" title="Abrir WhatsApp">📱 '+c.telefone+'</a>' : '<span style="color:#aaa">—</span>';
+    html+='<tr data-id="'+c.id+'"><td><b>'+c.nome+'</b></td><td style="font-size:12px">'+nomeCompletoCell+'</td><td style="font-size:12px;white-space:nowrap">'+telefoneCell+'</td><td>'+c.horario+'</td><td><span class="pill p-'+c.periodo+'">'+PERIODOS[c.periodo].nome+'</span></td><td>'+ccCel+'</td>';
     if(editing){
       const temSenha=!!c.senha;
       const senhaLabel=temSenha?'<span title="Senha definida" style="font-size:10px;color:#2e7d32">✅</span>':'<span title="Sem senha" style="font-size:10px;color:#e65100">⚠️</span>';
@@ -1178,13 +1222,19 @@ function renderColab(){
   // ---- Gestores ----
   html+='<h2 style="font-size:18px;margin:22px 0 10px">🛡️ Gestores</h2>';
   if(editing){
-    html+='<div class="addform"><div class="fld"><label>Nome do gestor</label><input type="text" id="newGestor" placeholder="Nome"></div><button class="btn primary" id="btnAddGestor">+ Adicionar gestor</button></div>';
+    html+='<div class="addform">'+
+      '<div class="fld"><label>Nome Completo</label><input type="text" id="newGestorNomeCompleto" placeholder="Nome e sobrenome completo"></div>'+
+      '<div class="fld"><label>Apelido <span style="font-size:11px;color:#7a8893">(exibido no sistema)</span></label><input type="text" id="newGestor" placeholder="Ex.: ANDREIA"></div>'+
+      '<div class="fld"><label>Telefone / WhatsApp</label><input type="tel" id="newGestorTelefone" placeholder="ex.: 47 99999-9999"></div>'+
+      '<button class="btn primary" id="btnAddGestor">+ Adicionar gestor</button></div>';
   }
-  html+='<table class="colab"><thead><tr><th>Nome</th><th>PIN</th>'+(editing?'<th style="width:130px">Ações</th>':'')+'</tr></thead><tbody>';
+  html+='<table class="colab"><thead><tr><th>Apelido</th><th>Nome Completo</th><th>Telefone</th><th>PIN</th>'+(editing?'<th style="width:160px">Ações</th>':'')+'</tr></thead><tbody>';
   (state.gestores||[]).forEach(g=>{
     const pinStatus=g.pin?'<span class="pill" style="background:#e8f5e9;color:#2e7d32;font-size:11px">✅ Definido</span>':'<span class="pill" style="background:#fff3e0;color:#e65100;font-size:11px">⚠️ Não definido</span>';
-    html+='<tr data-gid="'+g.id+'"><td><b>'+g.nome+'</b></td><td>'+pinStatus+'</td>';
-    if(editing) html+='<td><div style="display:flex;gap:4px"><button class="btn mini" data-gact="pin" title="Alterar PIN" style="font-size:11px;padding:3px 7px;background:#e3f2fd;border-color:#90cae8;color:#1565c0">🔐 PIN</button><button class="iconbtn" data-gact="del" title="Remover">🗑️</button></div></td>';
+    const gNomeCompletoCell = g.nomeCompleto ? g.nomeCompleto : '<span style="color:#aaa">—</span>';
+    const gTelefoneCell = g.telefone ? '<a href="https://wa.me/55'+g.telefone.replace(/\D/g,'')+'" target="_blank" style="color:#005E51;text-decoration:none" title="Abrir WhatsApp">📱 '+g.telefone+'</a>' : '<span style="color:#aaa">—</span>';
+    html+='<tr data-gid="'+g.id+'"><td><b>'+g.nome+'</b></td><td style="font-size:12px">'+gNomeCompletoCell+'</td><td style="font-size:12px;white-space:nowrap">'+gTelefoneCell+'</td><td>'+pinStatus+'</td>';
+    if(editing) html+='<td><div style="display:flex;gap:4px"><button class="iconbtn" data-gact="edit" title="Editar">✏️</button><button class="btn mini" data-gact="pin" title="Alterar PIN" style="font-size:11px;padding:3px 7px;background:#e3f2fd;border-color:#90cae8;color:#1565c0">🔐 PIN</button><button class="iconbtn" data-gact="del" title="Remover">🗑️</button></div></td>';
     html+='</tr>';
   });
   html+='</tbody></table>';
@@ -1264,6 +1314,7 @@ function renderColab(){
       b.addEventListener('click',()=>{
         const gid=b.closest('tr').dataset.gid;
         if(b.dataset.gact==='pin') alterarPinGestor(gid);
+        else if(b.dataset.gact==='edit') editGestor(gid);
         else delGestor(gid);
       });
     });
@@ -1289,11 +1340,13 @@ function delFeriado(dataISO){
   save(); renderColab(); renderEscala();
 }
 function addGestor(){
+  const nomeCompleto=(document.getElementById('newGestorNomeCompleto').value||'').trim();
   const nome=(document.getElementById('newGestor').value||'').trim();
-  if(!nome){alert('Informe o nome do gestor.');return;}
+  const telefone=(document.getElementById('newGestorTelefone').value||'').trim();
+  if(!nome){alert('Informe o apelido do gestor.');return;}
   let id=slug(nome); let n=1; while((state.gestores||[]).some(g=>g.id===id)){id=slug(nome)+(++n);}
   if(!state.gestores) state.gestores=[];
-  state.gestores.push({id, nome:nome.toUpperCase()});
+  state.gestores.push({id, nome:nome.toUpperCase(), nomeCompleto:nomeCompleto.toUpperCase(), telefone});
   save(); renderColab();
 }
 function delGestor(id){
@@ -1304,28 +1357,70 @@ function delGestor(id){
 }
 function slug(s){return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'')||('c'+Math.floor(performance.now()));}
 function addColab(){
+  const nomeCompleto=(document.getElementById('newNomeCompleto').value||'').trim();
   const nome=document.getElementById('newNome').value.trim();
   const horario=document.getElementById('newHorario').value.trim()||'—';
   const periodo=document.getElementById('newPeriodo').value;
-  if(!nome){alert('Informe o nome.');return;}
+  const telefone=(document.getElementById('newTelefone').value||'').trim();
+  if(!nome){alert('Informe o apelido.');return;}
   let id=slug(nome); let n=1; while(state.colaboradores.some(c=>c.id===id)){id=slug(nome)+(++n);}
   const fazCC=document.getElementById('newFazCC').checked;
-  state.colaboradores.push({id,nome:nome.toUpperCase(),horario,periodo,fazCC});
+  state.colaboradores.push({id,nome:nome.toUpperCase(),nomeCompleto:nomeCompleto.toUpperCase(),horario,periodo,fazCC,telefone});
   state.semanas.forEach(sw=>{ if(!state.escala[sw.id]) state.escala[sw.id]={}; state.escala[sw.id][id]=['','','','','','','']; });
   save(); renderColab(); renderMeSelect();
 }
+let _editColabId=null;
 function editColab(id){
   const c=state.colaboradores.find(x=>x.id===id); if(!c)return;
-  const nome=prompt('Nome:',c.nome); if(nome===null)return;
-  const horario=prompt('Horário:',c.horario); if(horario===null)return;
-  const periodo=prompt('Período (manha / tarde / especial / noite):',c.periodo);
-  if(periodo===null)return;
-  const fazCCResp=prompt('Faz Centro Cirúrgico? (S = Sim  /  N = Não):', c.fazCC!==false?'S':'N');
-  if(fazCCResp===null)return;
-  c.nome=nome.trim().toUpperCase(); c.horario=horario.trim();
-  if(['manha','tarde','especial','noite'].includes(periodo.trim())) c.periodo=periodo.trim();
-  c.fazCC = fazCCResp.trim().toUpperCase()!=='N';
+  _editColabId=id;
+  document.getElementById('ceNomeCompleto').value=c.nomeCompleto||'';
+  document.getElementById('ceNome').value=c.nome||'';
+  document.getElementById('ceHorario').value=c.horario||'';
+  document.getElementById('cePeriodo').value=c.periodo||'manha';
+  document.getElementById('ceFazCC').checked=c.fazCC!==false;
+  document.getElementById('ceTelefone').value=c.telefone||'';
+  document.getElementById('colabEditModal').style.display='flex';
+}
+function fecharColabEdit(){
+  document.getElementById('colabEditModal').style.display='none';
+  _editColabId=null;
+}
+function salvarColabEdit(){
+  const c=state.colaboradores.find(x=>x.id===_editColabId); if(!c)return;
+  const nome=(document.getElementById('ceNome').value||'').trim();
+  if(!nome){alert('Informe o apelido.');return;}
+  const periodo=document.getElementById('cePeriodo').value;
+  c.nomeCompleto=(document.getElementById('ceNomeCompleto').value||'').trim().toUpperCase();
+  c.nome=nome.toUpperCase();
+  c.horario=(document.getElementById('ceHorario').value||'').trim()||'—';
+  if(['manha','tarde','especial','noite'].includes(periodo)) c.periodo=periodo;
+  c.fazCC=document.getElementById('ceFazCC').checked;
+  c.telefone=(document.getElementById('ceTelefone').value||'').trim();
+  fecharColabEdit();
   save(); renderColab(); renderMeSelect(); renderEscala();
+}
+let _editGestorId=null;
+function editGestor(id){
+  const g=(state.gestores||[]).find(x=>x.id===id); if(!g)return;
+  _editGestorId=id;
+  document.getElementById('geNomeCompleto').value=g.nomeCompleto||'';
+  document.getElementById('geNome').value=g.nome||'';
+  document.getElementById('geTelefone').value=g.telefone||'';
+  document.getElementById('gestorEditModal').style.display='flex';
+}
+function fecharGestorEdit(){
+  document.getElementById('gestorEditModal').style.display='none';
+  _editGestorId=null;
+}
+function salvarGestorEdit(){
+  const g=(state.gestores||[]).find(x=>x.id===_editGestorId); if(!g)return;
+  const nome=(document.getElementById('geNome').value||'').trim();
+  if(!nome){alert('Informe o apelido.');return;}
+  g.nomeCompleto=(document.getElementById('geNomeCompleto').value||'').trim().toUpperCase();
+  g.nome=nome.toUpperCase();
+  g.telefone=(document.getElementById('geTelefone').value||'').trim();
+  fecharGestorEdit();
+  save(); renderColab();
 }
 function delColab(id){
   const c=state.colaboradores.find(x=>x.id===id); if(!c)return;
@@ -2529,7 +2624,8 @@ function gerarPdfRH(){
   }
 
   const setor     = cfgSetor();
-  const nomeResp  = (state.gestores.find(g=>g.id==='andreia')||{}).nome || 'ANDREIA';
+  const _andResp  = state.gestores.find(g=>g.id==='andreia')||{};
+  const nomeResp  = (_andResp.nomeCompleto && _andResp.nomeCompleto.trim()) ? _andResp.nomeCompleto : (_andResp.nome || 'ANDREIA');
   const fmtDia    = d => d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
   const fmtLongo  = d => d.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
   const dataDoc   = fmtDia(hoje);
@@ -2589,7 +2685,7 @@ function gerarPdfRH(){
 
       tbl += '<tr>';
       tbl += '<td style="background:'+bgNome+';border:1px solid #c4ccd2;font-size:8.5px;text-align:center;font-weight:600;white-space:nowrap;padding:2px 3px">'+horario+'</td>';
-      tbl += '<td style="background:'+bgNome+';border:1px solid #c4ccd2;font-size:9px;font-weight:700;padding:2px 5px">'+c.nome+'</td>';
+      tbl += '<td style="background:'+bgNome+';border:1px solid #c4ccd2;font-size:9px;font-weight:700;padding:2px 5px">'+(c.nomeCompleto&&c.nomeCompleto.trim()?c.nomeCompleto:c.nome)+'</td>';
 
       if(isSpan(e)){
         const ico = e.ferias ? '🏖️ ' : '';
