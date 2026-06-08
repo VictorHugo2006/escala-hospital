@@ -1223,7 +1223,7 @@ function renderAddForm(){
 }
 function renderColab(){
   renderAddForm();
-  let html='<table class="colab"><thead><tr><th>Apelido</th><th>Nome Completo</th><th>Telefone</th><th>Horário</th><th>Período</th><th>Faz CC?</th>'+(editing?'<th style="width:170px">Ações</th>':'')+'</tr></thead><tbody>';
+  let html='<table class="colab"><thead><tr><th>Nome Completo</th><th>Apelido</th><th>Telefone</th><th>Horário</th><th>Período</th><th>Faz CC?</th>'+(editing?'<th style="width:170px">Ações</th>':'')+'</tr></thead><tbody>';
   state.colaboradores.forEach(c=>{
     const fazCC = c.fazCC!==false;
     const ccCel = editing
@@ -1231,7 +1231,7 @@ function renderColab(){
       : (fazCC?'<span class="pill p-tarde">Sim</span>':'<span class="pill" style="background:#fde2dc;color:#c0392b">Não</span>');
     const nomeCompletoCell = c.nomeCompleto ? c.nomeCompleto : '<span style="color:#aaa">—</span>';
     const telefoneCell = c.telefone ? '<a href="https://wa.me/55'+c.telefone.replace(/\D/g,'')+'" target="_blank" style="color:#005E51;text-decoration:none" title="Abrir WhatsApp">📱 '+c.telefone+'</a>' : '<span style="color:#aaa">—</span>';
-    html+='<tr data-id="'+c.id+'"><td><b>'+c.nome+'</b></td><td style="font-size:12px">'+nomeCompletoCell+'</td><td style="font-size:12px;white-space:nowrap">'+telefoneCell+'</td><td>'+c.horario+'</td><td><span class="pill p-'+c.periodo+'">'+PERIODOS[c.periodo].nome+'</span></td><td>'+ccCel+'</td>';
+    html+='<tr data-id="'+c.id+'"><td style="font-size:12px">'+nomeCompletoCell+'</td><td><b>'+c.nome+'</b></td><td style="font-size:12px;white-space:nowrap">'+telefoneCell+'</td><td>'+c.horario+'</td><td><span class="pill p-'+c.periodo+'">'+PERIODOS[c.periodo].nome+'</span></td><td>'+ccCel+'</td>';
     if(editing){
       const temSenha=!!c.senha;
       const senhaLabel=temSenha?'<span title="Senha definida" style="font-size:10px;color:#2e7d32">✅</span>':'<span title="Sem senha" style="font-size:10px;color:#e65100">⚠️</span>';
@@ -1249,12 +1249,12 @@ function renderColab(){
       '<div class="fld"><label>Telefone / WhatsApp</label><input type="tel" id="newGestorTelefone" placeholder="ex.: 47 99999-9999"></div>'+
       '<button class="btn primary" id="btnAddGestor">+ Adicionar gestor</button></div>';
   }
-  html+='<table class="colab"><thead><tr><th>Apelido</th><th>Nome Completo</th><th>Telefone</th><th>PIN</th>'+(editing?'<th style="width:160px">Ações</th>':'')+'</tr></thead><tbody>';
+  html+='<table class="colab"><thead><tr><th>Nome Completo</th><th>Apelido</th><th>Telefone</th><th>PIN</th>'+(editing?'<th style="width:160px">Ações</th>':'')+'</tr></thead><tbody>';
   (state.gestores||[]).forEach(g=>{
     const pinStatus=g.pin?'<span class="pill" style="background:#e8f5e9;color:#2e7d32;font-size:11px">✅ Definido</span>':'<span class="pill" style="background:#fff3e0;color:#e65100;font-size:11px">⚠️ Não definido</span>';
     const gNomeCompletoCell = g.nomeCompleto ? g.nomeCompleto : '<span style="color:#aaa">—</span>';
     const gTelefoneCell = g.telefone ? '<a href="https://wa.me/55'+g.telefone.replace(/\D/g,'')+'" target="_blank" style="color:#005E51;text-decoration:none" title="Abrir WhatsApp">📱 '+g.telefone+'</a>' : '<span style="color:#aaa">—</span>';
-    html+='<tr data-gid="'+g.id+'"><td><b>'+g.nome+'</b></td><td style="font-size:12px">'+gNomeCompletoCell+'</td><td style="font-size:12px;white-space:nowrap">'+gTelefoneCell+'</td><td>'+pinStatus+'</td>';
+    html+='<tr data-gid="'+g.id+'"><td style="font-size:12px">'+gNomeCompletoCell+'</td><td><b>'+g.nome+'</b></td><td style="font-size:12px;white-space:nowrap">'+gTelefoneCell+'</td><td>'+pinStatus+'</td>';
     if(editing) html+='<td><div style="display:flex;gap:4px"><button class="iconbtn" data-gact="edit" title="Editar">✏️</button><button class="btn mini" data-gact="pin" title="Alterar PIN" style="font-size:11px;padding:3px 7px;background:#e3f2fd;border-color:#90cae8;color:#1565c0">🔐 PIN</button><button class="iconbtn" data-gact="del" title="Remover">🗑️</button></div></td>';
     html+='</tr>';
   });
