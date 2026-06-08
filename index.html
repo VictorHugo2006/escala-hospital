@@ -822,9 +822,10 @@ async function loadFromSupabase(){
       const s=data.dados;
       if(!Array.isArray(s.semanas)||!s.semanas.length) s.semanas=deepClone(SEMANAS_PADRAO);
       migrar(s); state=s;
-      localStorage.setItem(LSKEY,JSON.stringify(state));
       curWeek=Math.min(curWeek,state.semanas.length-1);
-      fillWeekSel(); renderMeSelect(); fillEuSel(); renderEscala(); renderColab(); refreshInbox();
+      save(); // salva localStorage + sincroniza migrações de volta ao Supabase
+      fillWeekSel(); renderMeSelect(); fillEuSel(); renderEscala(); renderColab(); refreshInbox(); atualizarIdentidade();
+      if(document.getElementById('tab-config')?.style.display!=='none') renderConfig();
     } else {
       // Supabase vazio → sobe estado do localStorage
       await _sb.from('escala_estado').upsert({id:1,dados:state,atualizado_em:new Date().toISOString()});
@@ -844,9 +845,10 @@ function setupRealtimeSync(){
       const remote=payload.new?.dados;
       if(!remote?.colaboradores) return;
       migrar(remote); state=remote;
-      localStorage.setItem(LSKEY,JSON.stringify(state));
       curWeek=Math.min(curWeek,state.semanas.length-1);
+      save();
       fillWeekSel(); renderMeSelect(); fillEuSel(); renderEscala(); renderColab(); refreshInbox(); atualizarIdentidade();
+      if(document.getElementById('tab-config')?.style.display!=='none') renderConfig();
       mostrarToast('🔄 Escala atualizada em tempo real','#1565c0');
     }).subscribe();
 }
@@ -894,6 +896,8 @@ function migrar(s){
   if(!s.config) s.config={antecedenciaDias:60};
   if(!s.config.setor) s.config.setor={icone:'☢️',nome:'Raio-X',unidade:'Hospital Santa Catarina'};
   if(!s._migs.setorIconeRadiacao){ if(s.config.setor.icone==='🩻') s.config.setor.icone='☢️'; s._migs.setorIconeRadiacao=true; }
+  // V2: força ☢️ independente do valor anterior (corrige Supabase desatualizado)
+  if(!s._migs.setorIconeRadiacaoV2){ s.config.setor.icone='☢️'; s._migs.setorIconeRadiacaoV2=true; }
   if(!s._migs.antec6){ s.config.antecedenciaDias=6; s._migs.antec6=true; }
   if(!s._migs.antec60){ s.config.antecedenciaDias=60; s._migs.antec60=true; }
   if(!s._migs.ivanorSemCC){
