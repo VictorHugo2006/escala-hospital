@@ -296,7 +296,7 @@
 <header class="top">
   <div>
     <h1 id="appTitle">2S Escala</h1>
-    <div class="sub">Hospital Santa Catarina · Escala de Plantões</div>
+    <div class="sub" id="headerSub">Hospital Santa Catarina · Escala de Plantões</div>
   </div>
   <div class="spacer"></div>
   <span id="syncStatus" style="font-size:11px;color:rgba(255,255,255,.75);white-space:nowrap"></span>
@@ -312,6 +312,7 @@
   <button class="tab" data-tab="troca">🔄 Trocas/Exceções <span id="tabTrocaBadge" class="badge-n" style="display:none">0</span></button>
   <button class="tab somente-gestor" data-tab="colab">👥 Colaboradores</button>
   <button class="tab" data-tab="guia">📖 Guia / Legenda</button>
+  <button class="tab somente-gestor" data-tab="config">⚙️ Configurações</button>
 </nav>
 
 <main>
@@ -346,7 +347,7 @@
     </div>
     <div id="printHeader" class="print-only" style="text-align:center;padding:6px 0 10px;border-bottom:2px solid #2e7d32;margin-bottom:8px">
       <div style="font-size:22px;font-weight:900;letter-spacing:.5px;color:#1b5e20" id="printTitle">ESCALA DE PLANTÕES</div>
-      <div style="font-size:13px;font-weight:600;color:#37474f;margin-top:2px">2S Escala · Hospital Santa Catarina</div>
+      <div id="printSetorSub" style="font-size:13px;font-weight:600;color:#37474f;margin-top:2px">2S Escala · Raio-X · Hospital Santa Catarina</div>
       <div style="font-size:12px;color:#546e7a;margin-top:3px" id="printWeekLabel"></div>
     </div>
     <div id="escalaInbox"></div>
@@ -477,6 +478,12 @@
       </div>
     </div>
   </section>
+
+  <!-- CONFIGURAÇÕES -->
+  <section id="tab-config" style="display:none">
+    <div id="configWrap"></div>
+  </section>
+
 </main>
 
 <!-- botão flutuante em modo paisagem mobile -->
@@ -578,7 +585,7 @@
     <div style="text-align:center;margin-bottom:28px">
       <div style="font-size:44px;margin-bottom:10px">🏥</div>
       <div style="font-size:24px;font-weight:900;color:#1b5e20;line-height:1.2;letter-spacing:.3px">2S Escala</div>
-      <div style="font-size:13px;color:#546e7a;margin-top:5px;font-weight:600">Hospital Santa Catarina · Escala de Plantões</div>
+      <div id="lgSetorSub" style="font-size:13px;color:#546e7a;margin-top:5px;font-weight:600">Hospital Santa Catarina · Raio-X</div>
     </div>
     <div style="margin-bottom:14px">
       <label style="font-size:11px;font-weight:700;color:#7a8893;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:7px">Quem é você?</label>
@@ -814,7 +821,7 @@ function setupRealtimeSync(){
       migrar(remote); state=remote;
       localStorage.setItem(LSKEY,JSON.stringify(state));
       curWeek=Math.min(curWeek,state.semanas.length-1);
-      fillWeekSel(); renderMeSelect(); fillEuSel(); renderEscala(); renderColab(); refreshInbox();
+      fillWeekSel(); renderMeSelect(); fillEuSel(); renderEscala(); renderColab(); refreshInbox(); atualizarIdentidade();
       mostrarToast('🔄 Escala atualizada em tempo real','#1565c0');
     }).subscribe();
 }
@@ -844,7 +851,7 @@ function checkURLToken(){
   return false;
 }
 function defaultState(){
-  return {colaboradores:deepClone(COLAB_PADRAO), escala:deepClone(ESCALA_PADRAO), semanas:deepClone(SEMANAS_PADRAO), trocas:[], trocaCells:{}, gestores:deepClone(GESTORES_PADRAO), config:{antecedenciaDias:60}, folgas:[], folgaCells:{}, remanejoCells:{}, feriados:deepClone(FERIADOS_PADRAO), ferias:[], superAdmin:{}};
+  return {colaboradores:deepClone(COLAB_PADRAO), escala:deepClone(ESCALA_PADRAO), semanas:deepClone(SEMANAS_PADRAO), trocas:[], trocaCells:{}, gestores:deepClone(GESTORES_PADRAO), config:{antecedenciaDias:60, setor:{icone:'🩻',nome:'Raio-X',unidade:'Hospital Santa Catarina'}}, folgas:[], folgaCells:{}, remanejoCells:{}, feriados:deepClone(FERIADOS_PADRAO), ferias:[], superAdmin:{}};
 }
 // migrações pontuais sobre estado salvo (idempotentes via flag)
 function migrar(s){
@@ -860,6 +867,7 @@ function migrar(s){
   if(!s.trocaCells) s.trocaCells={};
   if(!Array.isArray(s.gestores)) s.gestores=deepClone(GESTORES_PADRAO);
   if(!s.config) s.config={antecedenciaDias:60};
+  if(!s.config.setor) s.config.setor={icone:'🩻',nome:'Raio-X',unidade:'Hospital Santa Catarina'};
   if(!s._migs.antec6){ s.config.antecedenciaDias=6; s._migs.antec6=true; }
   if(!s._migs.antec60){ s.config.antecedenciaDias=60; s._migs.antec60=true; }
   if(!s._migs.ivanorSemCC){
@@ -1288,13 +1296,15 @@ function delColab(id){
 /* ============== TABS / CONTROLES ============== */
 function setTab(name){
   if(name==='colab' && ehColab()) name='minha';   // colaborador não acessa cadastro
+  if(name==='config' && !ehGestor()) name='escala'; // config só para gestores
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
-  ['escala','minha','colab','troca','guia'].forEach(n=>{
+  ['escala','minha','colab','troca','guia','config'].forEach(n=>{
     document.getElementById('tab-'+n).style.display = n===name?'':'none';
   });
   if(name==='minha') renderMinha();
   if(name==='colab') renderColab();
   if(name==='troca') renderTrocas();
+  if(name==='config') renderConfig();
   if(typeof checkOrientation==='function') checkOrientation();
 }
 function setEditing(v){
@@ -2016,6 +2026,63 @@ function renderTrocas(){
 /* ============== FOLGAS GARANTIDAS (FDS) ============== */
 const folModal=document.getElementById('folModal');
 function antecMin(){ return (state.config&&state.config.antecedenciaDias)||60; }
+function cfgSetor(){ return Object.assign({icone:'🩻',nome:'Raio-X',unidade:'Hospital Santa Catarina'}, (state.config&&state.config.setor)||{}); }
+function atualizarIdentidade(){
+  const s=cfgSetor();
+  const sub=document.getElementById('headerSub');
+  if(sub) sub.textContent=s.unidade+' · '+s.nome;
+  const lgSub=document.getElementById('lgSetorSub');
+  if(lgSub) lgSub.textContent=s.unidade+' · '+s.nome;
+  const pSub=document.getElementById('printSetorSub');
+  if(pSub) pSub.textContent='2S Escala · '+s.nome+' · '+s.unidade;
+}
+function renderConfig(){
+  const s=cfgSetor();
+  let html='<div class="card" style="padding:22px 26px;margin-bottom:16px">';
+  html+='<h2 style="margin:0 0 4px;font-size:18px;color:var(--verde-d)">⚙️ Configurações</h2>';
+  html+='<p style="margin:0 0 20px;font-size:13px;color:#7a8893">Identifique o setor e a unidade onde este sistema está em uso.</p>';
+  // card setor atual
+  html+='<div style="background:#eef6f0;border:1.5px solid #bfe0cb;border-radius:12px;padding:16px 20px;margin-bottom:22px;display:flex;align-items:center;gap:16px">';
+  html+='<span id="cfgIconePreview" style="font-size:42px;line-height:1">'+s.icone+'</span>';
+  html+='<div><div style="font-size:20px;font-weight:900;color:#1b5e20">'+s.nome+'</div>';
+  html+='<div style="font-size:13px;color:#546e7a;margin-top:3px">'+s.unidade+'</div></div>';
+  html+='</div>';
+  // formulário (apenas gestores)
+  html+='<div style="display:flex;flex-direction:column;gap:14px">';
+  html+='<div class="fld"><label>Ícone (emoji)</label>';
+  html+='<input type="text" id="cfgIcone" value="'+s.icone+'" maxlength="4" style="width:72px;font-size:22px;text-align:center;padding:8px" oninput="document.getElementById(\'cfgIconePreview\').textContent=this.value.trim()||\'🏥\'"></div>';
+  html+='<div class="fld"><label>Nome do setor</label>';
+  html+='<input type="text" id="cfgNome" value="'+s.nome+'" placeholder="Ex: Raio-X, Tomografia, UTI..." style="max-width:300px"></div>';
+  html+='<div class="fld"><label>Unidade / Hospital</label>';
+  html+='<input type="text" id="cfgUnidade" value="'+s.unidade+'" placeholder="Ex: Hospital Santa Catarina" style="max-width:400px"></div>';
+  html+='</div>';
+  html+='<div style="margin-top:18px"><button class="btn primary" onclick="salvarSetor()">💾 Salvar identificação</button></div>';
+  html+='</div>';
+  // card futuro
+  html+='<div style="background:#f7f8fa;border:1.5px dashed #c4ccd2;border-radius:12px;padding:18px 22px">';
+  html+='<div style="font-size:15px;font-weight:800;color:#546e7a;margin-bottom:8px">🔮 Em breve — múltiplos setores</div>';
+  html+='<div style="font-size:13px;color:#7a8893;line-height:1.7">';
+  html+='Futuramente o <b>2S Escala</b> suportará vários setores independentes — ';
+  html+='cada um com sua própria equipe, escala e configurações.</div>';
+  html+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">';
+  ['🩻 Raio-X','🔬 Tomografia','🏥 Emergência','💉 UTI','🔊 Ultrassom'].forEach(t=>{
+    html+='<span style="background:#e9ecef;color:#546e7a;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600">'+t+'</span>';
+  });
+  html+='</div></div>';
+  document.getElementById('configWrap').innerHTML=html;
+}
+function salvarSetor(){
+  if(!ehGestor()){ alert('Apenas gestores podem alterar as configurações.'); return; }
+  const icone=(document.getElementById('cfgIcone').value||'').trim()||'🏥';
+  const nome=(document.getElementById('cfgNome').value||'').trim();
+  const unidade=(document.getElementById('cfgUnidade').value||'').trim();
+  if(!nome){ alert('Digite o nome do setor.'); return; }
+  if(!unidade){ alert('Digite o nome da unidade/hospital.'); return; }
+  if(!state.config) state.config={antecedenciaDias:60};
+  state.config.setor={icone,nome,unidade};
+  save(); atualizarIdentidade(); renderConfig();
+  mostrarToast('✅ Identificação salva — '+icone+' '+nome+' · '+unidade,'#1b5e20');
+}
 function formatarDataBR(iso){ const p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 function abrirFolga(){
   if(!ehColab()){ alert('Entre como colaborador (👤 Entrar) para pedir folga.'); return; }
@@ -2415,7 +2482,7 @@ async function gerarImagemWhatsApp(){
     const hdr=document.createElement('div');
     hdr.style.cssText='background:#1b5e20;color:#fff;padding:14px 22px 12px;text-align:center';
     hdr.innerHTML='<div style="font-size:20px;font-weight:900;letter-spacing:.4px">ESCALA DE PLANTÕES</div>'
-      +'<div style="font-size:12px;opacity:.88;margin-top:3px;font-weight:600">2S Escala · Hospital Santa Catarina</div>'
+      +'<div style="font-size:12px;opacity:.88;margin-top:3px;font-weight:600">'+(() => { const s=cfgSetor(); return '2S Escala · '+s.nome+' · '+s.unidade; })()+'</div>'
       +(wkLbl?'<div style="font-size:12px;opacity:.80;margin-top:2px">'+wkLbl.textContent+'</div>':'');
     wrap.appendChild(hdr);
 
@@ -2496,6 +2563,7 @@ if(!checkURLToken()){
   if(precisaLogin()) abrirLoginGate();
 }
 refreshInbox();
+atualizarIdentidade(); // aplica nome do setor no cabeçalho/login
 checkOrientation(); // detecta orientação inicial
 // Carrega do Supabase em background e ativa sync em tempo real
 loadFromSupabase();
