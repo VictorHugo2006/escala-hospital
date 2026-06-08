@@ -314,7 +314,6 @@
   <div class="spacer"></div>
   <span id="syncStatus" style="font-size:11px;color:rgba(255,255,255,.75);white-space:nowrap"></span>
   <span id="userChip" class="user-chip"></span>
-  <button class="btn somente-gestor" id="btnInbox" title="Caixa de solicitações pendentes de autorização">📨 Trocas/Exceções <span id="inboxBadge" class="badge-n" style="display:none">0</span></button>
   <button class="btn somente-gestor" id="btnEdit">🔓 Modo Gestor</button>
   <button class="btn sair" id="btnLogin" style="display:none">🚪 Sair</button>
 </header>
@@ -1544,7 +1543,6 @@ document.getElementById('tkPara').addEventListener('change',atualizaTrocaDias);
 document.getElementById('tkDiaA').addEventListener('change',atualizaTkInfo);
 document.getElementById('tkDiaB').addEventListener('change',atualizaTkInfo);
 document.getElementById('euSel').addEventListener('change',renderTrocas);
-document.getElementById('btnInbox').addEventListener('click',()=>setTab('troca'));
 document.getElementById('trocaModal').addEventListener('click',e=>{ if(e.target.id==='trocaModal') fecharTroca(); });
 document.getElementById('btnPrint').addEventListener('click',()=>window.print());
 document.getElementById('btnPrintMe').addEventListener('click',()=>window.print());
@@ -2012,7 +2010,6 @@ function descTroca(t){
 function inboxCount(){ return state.trocas.filter(t=>t.status==='aguardando_gestor' && !t.lidaGestor).length + (state.folgas||[]).filter(f=>f.status==='pendente' && !f.lidaGestor).length; }
 function refreshInbox(){
   const nG=inboxCount();
-  const ib=document.getElementById('inboxBadge'); if(ib){ ib.textContent=nG; ib.style.display=nG?'inline-flex':'none'; }
   const tb=document.getElementById('tabTrocaBadge');
   if(tb){
     const n = ehColab() ? state.trocas.filter(t=>t.paraId===sessao.colabId && t.status==='aguardando_colega').length : nG;
