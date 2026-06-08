@@ -11,8 +11,9 @@
 <title>2S Escala</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='white'/><text x='11' y='68' font-family='Arial Black,Impact,sans-serif' font-size='56' font-weight='900' fill='%23005E51'>2</text><text x='49' y='68' font-family='Arial Black,Impact,sans-serif' font-size='56' font-weight='900' fill='%23008F79'>S</text><path d='M7 78 Q50 95 93 68' stroke='%234FBFF1' stroke-width='6' fill='none' stroke-linecap='round'/></svg>">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='white'/><text x='11' y='68' font-family='Arial Black,Impact,sans-serif' font-size='56' font-weight='900' fill='%23005E51'>2</text><text x='49' y='68' font-family='Arial Black,Impact,sans-serif' font-size='56' font-weight='900' fill='%23008F79'>S</text><path d='M7 78 Q50 95 93 68' stroke='%234FBFF1' stroke-width='6' fill='none' stroke-linecap='round'/></svg>">
+<link rel="icon" href="/icon-180.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
+<link rel="manifest" href="/manifest.json">
 <style>
   :root{
     --manha:#fdead0; --manha-h:#fcd5b4;
@@ -32,10 +33,15 @@
   header.top h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.3px}
   header.top .sub{font-size:12px;opacity:.9}
   .spacer{flex:1}
-  .tabs{display:flex;gap:4px;background:#fff;padding:0 12px;border-bottom:2px solid #d6dde2;position:sticky;top:0;z-index:20;overflow-x:auto}
-  .tab{padding:12px 16px;border:none;background:none;font-size:14px;font-weight:600;color:#5c6b75;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+  .tabs{display:flex;align-items:stretch;background:#fff;border-bottom:2px solid #d6dde2;position:sticky;top:0;z-index:20}
+  .tabs-inner{display:flex;gap:4px;padding:0 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex:1 1 auto}
+  .tab{padding:12px 16px;border:none;background:none;font-size:14px;font-weight:600;color:#5c6b75;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;flex-shrink:0}
   .tab.active{color:var(--verde-d);border-bottom-color:var(--azul-2s)}
   .tab:hover{color:var(--verde-d)}
+  .setor-badge{flex:0 0 auto;border-left:1.5px solid #e0e6ec;padding:0 14px;display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;color:var(--verde-d);cursor:pointer;white-space:nowrap;user-select:none}
+  .setor-badge:hover{background:#f0f8f6}
+  .setor-badge .sb-icon{font-size:16px;line-height:1}
+  .setor-badge .sb-nome{letter-spacing:.2px}
   main{padding:16px;max-width:1280px;margin:0 auto}
   .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
   button.btn{background:#fff;border:1px solid #c4ccd2;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#37434d;display:inline-flex;align-items:center;gap:6px}
@@ -208,8 +214,10 @@
     .user-chip{font-size:11px;padding:4px 8px}
     #syncStatus{display:none}
     /* ---- Tabs ---- */
-    .tabs{padding:0 4px;gap:0}
+    .tabs-inner{padding:0 4px;gap:0}
     .tab{padding:10px 9px;font-size:12px}
+    .setor-badge{padding:0 10px;font-size:11px;gap:5px}
+    .setor-badge .sb-icon{font-size:14px}
     /* ---- Main ---- */
     main{padding:10px 8px}
     /* ---- Toolbar ---- */
@@ -312,12 +320,18 @@
 </header>
 
 <nav class="tabs">
-  <button class="tab active" data-tab="escala">📅 Escala</button>
-  <button class="tab" data-tab="minha">👤 Minha Escala</button>
-  <button class="tab" data-tab="troca">🔄 Trocas/Exceções <span id="tabTrocaBadge" class="badge-n" style="display:none">0</span></button>
-  <button class="tab somente-gestor" data-tab="colab">👥 Colaboradores</button>
-  <button class="tab" data-tab="guia">📖 Guia / Legenda</button>
-  <button class="tab somente-gestor" data-tab="config">⚙️ Configurações</button>
+  <div class="tabs-inner">
+    <button class="tab active" data-tab="escala">📅 Escala</button>
+    <button class="tab" data-tab="minha">👤 Minha Escala</button>
+    <button class="tab" data-tab="troca">🔄 Trocas/Exceções <span id="tabTrocaBadge" class="badge-n" style="display:none">0</span></button>
+    <button class="tab somente-gestor" data-tab="colab">👥 Colaboradores</button>
+    <button class="tab" data-tab="guia">📖 Guia / Legenda</button>
+    <button class="tab somente-gestor" data-tab="config">⚙️ Configurações</button>
+  </div>
+  <div id="setorBadge" class="setor-badge" onclick="setTab('config')" title="Ir para Configurações">
+    <span class="sb-icon" id="setorBadgeIcon">☢️</span>
+    <span class="sb-nome" id="setorBadgeNome">Raio-X</span>
+  </div>
 </nav>
 
 <main>
@@ -862,7 +876,7 @@ function checkURLToken(){
   return false;
 }
 function defaultState(){
-  return {colaboradores:deepClone(COLAB_PADRAO), escala:deepClone(ESCALA_PADRAO), semanas:deepClone(SEMANAS_PADRAO), trocas:[], trocaCells:{}, gestores:deepClone(GESTORES_PADRAO), config:{antecedenciaDias:60, setor:{icone:'🩻',nome:'Raio-X',unidade:'Hospital Santa Catarina'}}, folgas:[], folgaCells:{}, remanejoCells:{}, feriados:deepClone(FERIADOS_PADRAO), ferias:[], superAdmin:{}};
+  return {colaboradores:deepClone(COLAB_PADRAO), escala:deepClone(ESCALA_PADRAO), semanas:deepClone(SEMANAS_PADRAO), trocas:[], trocaCells:{}, gestores:deepClone(GESTORES_PADRAO), config:{antecedenciaDias:60, setor:{icone:'☢️',nome:'Raio-X',unidade:'Hospital Santa Catarina'}}, folgas:[], folgaCells:{}, remanejoCells:{}, feriados:deepClone(FERIADOS_PADRAO), ferias:[], superAdmin:{}};
 }
 // migrações pontuais sobre estado salvo (idempotentes via flag)
 function migrar(s){
@@ -878,7 +892,8 @@ function migrar(s){
   if(!s.trocaCells) s.trocaCells={};
   if(!Array.isArray(s.gestores)) s.gestores=deepClone(GESTORES_PADRAO);
   if(!s.config) s.config={antecedenciaDias:60};
-  if(!s.config.setor) s.config.setor={icone:'🩻',nome:'Raio-X',unidade:'Hospital Santa Catarina'};
+  if(!s.config.setor) s.config.setor={icone:'☢️',nome:'Raio-X',unidade:'Hospital Santa Catarina'};
+  if(!s._migs.setorIconeRadiacao){ if(s.config.setor.icone==='🩻') s.config.setor.icone='☢️'; s._migs.setorIconeRadiacao=true; }
   if(!s._migs.antec6){ s.config.antecedenciaDias=6; s._migs.antec6=true; }
   if(!s._migs.antec60){ s.config.antecedenciaDias=60; s._migs.antec60=true; }
   if(!s._migs.ivanorSemCC){
@@ -2037,7 +2052,7 @@ function renderTrocas(){
 /* ============== FOLGAS GARANTIDAS (FDS) ============== */
 const folModal=document.getElementById('folModal');
 function antecMin(){ return (state.config&&state.config.antecedenciaDias)||60; }
-function cfgSetor(){ return Object.assign({icone:'🩻',nome:'Raio-X',unidade:'Hospital Santa Catarina'}, (state.config&&state.config.setor)||{}); }
+function cfgSetor(){ return Object.assign({icone:'☢️',nome:'Raio-X',unidade:'Hospital Santa Catarina'}, (state.config&&state.config.setor)||{}); }
 function atualizarIdentidade(){
   const s=cfgSetor();
   const sub=document.getElementById('headerSub');
@@ -2046,6 +2061,11 @@ function atualizarIdentidade(){
   if(lgSub) lgSub.textContent=s.unidade+' · '+s.nome;
   const pSub=document.getElementById('printSetorSub');
   if(pSub) pSub.textContent='2S Escala · '+s.nome+' · '+s.unidade;
+  // badge fixo no navbar
+  const bi=document.getElementById('setorBadgeIcon');
+  const bn=document.getElementById('setorBadgeNome');
+  if(bi) bi.textContent=s.icone;
+  if(bn) bn.textContent=s.nome;
 }
 function renderConfig(){
   const s=cfgSetor();
