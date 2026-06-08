@@ -346,7 +346,6 @@
       <select id="weekSel"></select>
       <button class="btn" id="nextWeek">▶</button>
       <button class="btn primary gestor-only" id="btnAutoWeek" title="Gera automaticamente o período que você escolher (semanas/meses) seguindo as regras">⚙️ Gerar escala (auto)</button>
-      <button class="btn gestor-only" id="btnDupWeek" title="Cria a próxima semana copiando a escala da semana atual (para você só ajustar)">📋 Duplicar p/ próxima</button>
       <button class="btn gestor-only" id="btnNewWeek" title="Cria a próxima semana em branco">➕ Nova semana</button>
       <button class="btn gestor-only" id="btnDelWeek" title="Remove a semana atual" style="color:#c0392b">🗑️ Remover semana</button>
       <span class="spacer"></span>
@@ -454,7 +453,6 @@
       <p>Com o <b>Modo Gestor</b> ativo, na aba <b>Escala</b>, ao lado do seletor de semanas:</p>
       <ul>
         <li><b>⚙️ Gerar escala (auto)</b> — abre um diálogo para escolher <b>quantas semanas/meses</b> gerar. O sistema cria tudo seguindo as regras (24h, rodízio de FDS por justiça, CC, noturno 12×72 e compensação) — a base já vem quase pronta. <b>Noturno:</b> ciclo de 4 semanas — Qui+Sáb*, Seg+Sex, Ter+Sáb, Qua+Dom — garantindo ≥72h de descanso e rodízio justo. Quem trabalha quinta-feira recebe sábado 7h-19h automaticamente.</li>
-        <li><b>📋 Duplicar p/ próxima</b> — cria a próxima semana <i>copiando</i> a atual.</li>
         <li><b>➕ Nova semana</b> — cria a próxima <i>em branco</i>.</li>
         <li><b>🗑️ Remover semana</b> — apaga a semana exibida.</li>
       </ul>
@@ -1533,7 +1531,6 @@ function removeWeek(){
   save(); fillWeekSel(); renderEscala();
 }
 document.getElementById('btnNewWeek').addEventListener('click',()=>addWeek(false));
-document.getElementById('btnDupWeek').addEventListener('click',()=>addWeek(true));
 document.getElementById('btnDelWeek').addEventListener('click',removeWeek);
 const genModal=document.getElementById('genModal');
 function atualizaGenInfo(){
