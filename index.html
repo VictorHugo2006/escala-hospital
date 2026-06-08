@@ -302,6 +302,7 @@
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 </head>
 <body>
@@ -2754,18 +2755,9 @@ function _gerarPdfRH(ini, fim){
     weeksHtml += tbl;
   });
 
-  // ── HTML completo da nova janela ──
-  const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
-    +'<title>Escala RH — '+setor.nome+' — '+periodoLabel+'</title>'
-    +'<style>'
-    +'@page{size:A4 portrait;margin:12mm 8mm}'
-    +'*{box-sizing:border-box;margin:0;padding:0}'
-    +'body{font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#222;background:#fff}'
-    +'@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}'
-    +'</style></head><body>'
-
-    // ── Cabeçalho RH ──
-    +'<div style="border:2px solid #005E51;border-radius:6px;overflow:hidden;margin-bottom:14px">'
+  // ── Conteúdo do documento (sem wrapper HTML) ──
+  const bodyContent =
+    '<div style="border:2px solid #005E51;border-radius:6px;overflow:hidden;margin-bottom:14px">'
       +'<div style="background:#005E51;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:14px">'
         +'<div style="font-size:32px;font-weight:900;letter-spacing:1px;line-height:1;font-family:Arial Black,Arial,sans-serif">2<span style="color:#4FBFF1">S</span></div>'
         +'<div style="flex:1">'
@@ -2774,7 +2766,6 @@ function _gerarPdfRH(ini, fim){
           +'<div style="font-size:10.5px;font-weight:700;color:#4FBFF1;margin-top:3px">Período: '+periodoLabel+'</div>'
         +'</div>'
       +'</div>'
-      // Metadados (4 campos)
       +'<div style="display:flex;border-top:1px solid #d0dfe0">'
         +'<div style="flex:1;padding:7px 12px;border-right:1px solid #d0dfe0">'
           +'<div style="font-size:7.5px;font-weight:700;color:#005E51;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Data do Documento</div>'
@@ -2794,38 +2785,67 @@ function _gerarPdfRH(ini, fim){
         +'</div>'
       +'</div>'
     +'</div>'
-
-    // ── Semanas ──
     +weeksHtml
-
-    // ── Legenda ──
     +'<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;padding:5px 0;border-top:1px solid #c4ccd2;font-size:8px;color:#546e7a">'
       +'<span><b style="color:#008F79">✓</b> Plantão &nbsp;</span>'
       +'<span><b style="color:#005E51">✓CC</b> Centro Cirúrgico &nbsp;</span>'
       +'<span><b style="color:#1565c0">7h-19h</b> Compensação Noturna &nbsp;</span>'
-      +'<span>■ Fundo laranja = Manhã &nbsp;</span>'
-      +'<span>■ Fundo azul = Tarde &nbsp;</span>'
-      +'<span>■ Fundo amarelo = Noite</span>'
+      +'<span>■ Fundo laranja = Manhã &nbsp; ■ Fundo azul = Tarde &nbsp; ■ Fundo amarelo = Noite</span>'
     +'</div>'
-
-    // ── Rodapé ──
     +'<div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:6px;border-top:1px solid #e0e0e0;font-size:8px;color:#aaa">'
       +'<span>2S Escala · '+setor.nome+' · '+setor.unidade+'</span>'
       +'<span>Gerado em '+dataDoc+' · Documento interno · Setor RH</span>'
-    +'</div>'
+    +'</div>';
 
-    +'<script>window.onload=function(){setTimeout(function(){window.print();},700);};<\/script>'
-    +'</body></html>';
-
-  const win = window.open('','_blank','width=960,height=780');
-  if(!win){
-    mostrarToast('⚠️ Pop-up bloqueado — permita pop-ups para este site e tente novamente','#c0392b');
+  // ── Verificar dependências ──
+  if(typeof html2canvas==='undefined'||typeof window.jspdf==='undefined'){
+    mostrarToast('⚠️ Aguarde — dependências ainda carregando. Tente novamente em 2s.','#e65100');
     return;
   }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  mostrarToast('📋 Relatório RH aberto — escolha "Salvar como PDF" na janela de impressão','#005E51');
+
+  // ── Container oculto para captura ──
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px;background:#fff;padding:12px 10px;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#222;box-sizing:border-box';
+  wrap.innerHTML = bodyContent;
+  document.body.appendChild(wrap);
+
+  mostrarToast('⏳ Gerando PDF…','#37474f');
+
+  try {
+    const canvas = await html2canvas(wrap, {
+      scale: 2, useCORS: true, backgroundColor: '#fff', logging: false,
+      windowWidth: 820
+    });
+    document.body.removeChild(wrap);
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const margin = 8;
+    const imgW = 210 - 2 * margin;
+    const imgH = canvas.height * imgW / canvas.width;
+    const pageH = 297 - 2 * margin;
+    const imgData = canvas.toDataURL('image/jpeg', 0.93);
+
+    // Adiciona imagem paginada: mesma imagem com offset crescente
+    let yImg = margin;
+    let restante = imgH;
+    doc.addImage(imgData, 'JPEG', margin, yImg, imgW, imgH);
+    restante -= pageH;
+    while(restante > 0){
+      yImg -= pageH;
+      doc.addPage();
+      doc.addImage(imgData, 'JPEG', margin, yImg, imgW, imgH);
+      restante -= pageH;
+    }
+
+    const nomePdf = 'Escala_RH_'+periodoLabel.replace(/\//g,'-').replace(/ /g,'_')+'.pdf';
+    doc.save(nomePdf);
+    mostrarToast('📥 PDF gerado — escolha onde salvar!','#005E51');
+  } catch(e) {
+    if(document.body.contains(wrap)) document.body.removeChild(wrap);
+    console.error('gerarPdfRH:', e);
+    mostrarToast('❌ Erro ao gerar PDF: '+e.message,'#c0392b');
+  }
 }
 
 async function gerarImagemWhatsApp(){
