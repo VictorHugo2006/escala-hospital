@@ -352,6 +352,7 @@
       <span class="spacer"></span>
       <span id="editHint" class="hint" style="margin:0;display:none">✏️ Edição ativa: clique numa célula para alternar (vazio → X → CC). Duplo-clique para texto livre.</span>
       <button class="btn somente-gestor" id="btnWhatsApp" title="Gera imagem PNG da escala para enviar pelo WhatsApp">📱 Imagem WhatsApp</button>
+      <button class="btn somente-gestor" id="btnPdfRH" title="Gera PDF mensal (dia 21 ao dia 20) para enviar ao RH">📋 Relatório RH</button>
       <button class="btn somente-gestor" id="btnPrint">🖨️ Imprimir</button>
     </div>
     <div class="legend">
@@ -1453,6 +1454,7 @@ document.getElementById('trocaModal').addEventListener('click',e=>{ if(e.target.
 document.getElementById('btnPrint').addEventListener('click',()=>window.print());
 document.getElementById('btnPrintMe').addEventListener('click',()=>window.print());
 document.getElementById('btnWhatsApp').addEventListener('click', gerarImagemWhatsApp);
+document.getElementById('btnPdfRH').addEventListener('click', gerarPdfRH);
 document.getElementById('meSel').addEventListener('change',renderMinha);
 
 // Backup
@@ -2505,6 +2507,188 @@ function baixarPNGPreview(){
   mostrarToast('📥 PNG salvo — anexe no WhatsApp','#37474f');
   fecharPreviewImg();
 }
+/* ============== RELATÓRIO PDF — RH ============== */
+function gerarPdfRH(){
+  // Período: dia 21 do mês atual → dia 20 do mês seguinte
+  const hoje   = new Date();
+  const mesAt  = hoje.getMonth(), anoAt = hoje.getFullYear();
+  const mesFim = mesAt===11 ? 0 : mesAt+1;
+  const anoFim = mesAt===11 ? anoAt+1 : anoAt;
+  const ini    = new Date(anoAt, mesAt, 21);
+  const fim    = new Date(anoFim, mesFim, 20);
+
+  // Semanas que se sobrepõem ao período
+  const semsFiltradas = state.semanas.filter(sw=>{
+    const wkIni = new Date(sw.startISO+'T12:00:00');
+    const wkFim = new Date(wkIni); wkFim.setDate(wkFim.getDate()+6);
+    return wkIni<=fim && wkFim>=ini;
+  });
+  if(!semsFiltradas.length){
+    mostrarToast('⚠️ Nenhuma semana encontrada no período — gere as semanas primeiro','#c0392b');
+    return;
+  }
+
+  const setor     = cfgSetor();
+  const nomeResp  = (state.gestores.find(g=>g.id==='andreia')||{}).nome || 'ANDREIA';
+  const fmtDia    = d => d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const fmtLongo  = d => d.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const dataDoc   = fmtDia(hoje);
+  const periodoLabel = fmtDia(ini)+' a '+fmtDia(fim);
+  const iniLongo  = fmtLongo(ini), fimLongo = fmtLongo(fim);
+
+  // ── Renderização de uma célula de dia ──
+  function dcCell(i, val){
+    const bgFds = i>=5 ? 'background:#ebebeb;' : '';
+    if(!val||!val.trim()) return '<td style="'+bgFds+'color:#c8c8c8;font-size:8px;text-align:center;border:1px solid #c4ccd2;padding:2px">—</td>';
+    const s = 'border:1px solid #c4ccd2;text-align:center;padding:2px;font-size:9px;font-weight:700;';
+    if(/^férias$/i.test(val))  return '<td style="'+s+'background:#c8e6f7;color:#0d47a1">Férias</td>';
+    if(/^atestado$/i.test(val)) return '<td style="'+s+'background:#fce4e4;color:#c0392b">Atest.</td>';
+    if(/7h.?19h/i.test(val))   return '<td style="'+s+'background:#e3f2fd;color:#1565c0;font-size:8px">7h-19h</td>';
+    if(val==='CC')              return '<td style="'+s+'background:#005E51;color:#fff;font-size:8.5px">✓CC</td>';
+    if(val==='X')               return '<td style="'+s+'background:#008F79;color:#fff;font-size:10px">✓</td>';
+    return '<td style="'+bgFds+'border:1px solid #c4ccd2;color:#37474f;font-size:8px;text-align:center;padding:2px">'+val.substring(0,8)+'</td>';
+  }
+
+  // ── Tabelas por semana ──
+  let weeksHtml = '';
+  semsFiltradas.forEach((sw,si)=>{
+    const wk      = weekInfo(sw);
+    const wkData  = state.escala[wk.id]||{};
+    const fer     = feriadosDaSemana(wk.startISO);
+    const mt      = si>0 ? 'margin-top:18px;' : '';
+
+    // Cabeçalho da semana
+    let tbl = '<div style="'+mt+'break-inside:avoid">'
+      +'<div style="background:#008F79;color:#fff;font-weight:700;font-size:10.5px;padding:5px 10px;border-radius:4px 4px 0 0">📅 '+wk.label+'</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:9.5px"><thead><tr>'
+      +'<th style="background:#cfd8de;border:1px solid #9aa7b0;padding:3px 4px;font-size:8.5px;width:70px;text-align:center">Horário</th>'
+      +'<th style="background:#cfd8de;border:1px solid #9aa7b0;padding:3px 6px;font-size:8.5px;text-align:left;width:140px">Técnico</th>';
+
+    DIAS.forEach((_,i)=>{
+      const bgH = i===5?'#c9d4cb':(i===6?'#dcd6ec':'#d8e4bc');
+      const fhStr = fer[i]!==undefined ? '<br><span style="color:#c0392b;font-size:7px;font-weight:700">FER</span>' : '';
+      tbl += '<th style="background:'+bgH+';border:1px solid #9aa7b0;padding:3px 2px;font-size:8.5px;text-align:center;min-width:30px">'
+        +DIAS_CURTO[i]+'<br><span style="font-weight:400;font-size:7.5px;color:#546e7a">'+wk.dm[i]+'</span>'+fhStr+'</th>';
+    });
+    tbl += '</tr></thead><tbody>';
+
+    // Linhas de colaboradores
+    let lastP = null;
+    const totais = [0,0,0,0,0,0,0];
+    state.colaboradores.forEach(c=>{
+      const e = getEntry(wk.id, c.id);
+      const horario = (isSpan(e)&&e.horario) ? e.horario : c.horario;
+      const per = c.periodo||'';
+      const bgMap = {manha:'#fdead0',tarde:'#dbeef4',noite:'#fff8c9',especial:'#d8e4bc'};
+      const bgNome = bgMap[per]||'#fff';
+
+      if(lastP!==null && per!==lastP){
+        tbl += '<tr><td colspan="9" style="height:5px;background:#cfd8de;border-top:1.5px solid #6b7a85;border-bottom:1.5px solid #6b7a85"></td></tr>';
+      }
+      lastP = per;
+
+      tbl += '<tr>';
+      tbl += '<td style="background:'+bgNome+';border:1px solid #c4ccd2;font-size:8.5px;text-align:center;font-weight:600;white-space:nowrap;padding:2px 3px">'+horario+'</td>';
+      tbl += '<td style="background:'+bgNome+';border:1px solid #c4ccd2;font-size:9px;font-weight:700;padding:2px 5px">'+c.nome+'</td>';
+
+      if(isSpan(e)){
+        const ico = e.ferias ? '🏖️ ' : '';
+        tbl += '<td colspan="7" style="background:#d8e4bc;color:#4a6b1e;font-style:italic;text-align:center;border:1px solid #c4ccd2;font-size:8.5px;padding:2px">'+ico+e.span+'</td>';
+      } else {
+        const d = diasOf(e);
+        for(let i=0;i<7;i++){
+          if(d[i]&&d[i].trim()) totais[i]++;
+          tbl += dcCell(i, d[i]||'');
+        }
+      }
+      tbl += '</tr>';
+    });
+
+    // Rodapé totais
+    tbl += '<tr style="background:#eef2f5">'
+      +'<td colspan="2" style="border:1px solid #c4ccd2;font-size:8px;font-weight:700;color:#5c6b75;text-align:right;padding:2px 6px">Total/dia →</td>';
+    for(let i=0;i<7;i++){
+      tbl += '<td style="border:1px solid #c4ccd2;font-size:8.5px;font-weight:700;color:#5c6b75;text-align:center">'+(totais[i]||'')+'</td>';
+    }
+    tbl += '</tr>';
+    tbl += '</tbody></table></div>';
+    weeksHtml += tbl;
+  });
+
+  // ── HTML completo da nova janela ──
+  const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
+    +'<title>Escala RH — '+setor.nome+' — '+periodoLabel+'</title>'
+    +'<style>'
+    +'@page{size:A4 portrait;margin:12mm 8mm}'
+    +'*{box-sizing:border-box;margin:0;padding:0}'
+    +'body{font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#222;background:#fff}'
+    +'@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}'
+    +'</style></head><body>'
+
+    // ── Cabeçalho RH ──
+    +'<div style="border:2px solid #005E51;border-radius:6px;overflow:hidden;margin-bottom:14px">'
+      +'<div style="background:#005E51;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:14px">'
+        +'<div style="font-size:32px;font-weight:900;letter-spacing:1px;line-height:1;font-family:Arial Black,Arial,sans-serif">2<span style="color:#4FBFF1">S</span></div>'
+        +'<div style="flex:1">'
+          +'<div style="font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:.5px">Escala de Plantões — '+setor.nome+'</div>'
+          +'<div style="font-size:9px;opacity:.85;margin-top:2px">'+setor.unidade+'</div>'
+          +'<div style="font-size:10.5px;font-weight:700;color:#4FBFF1;margin-top:3px">Período: '+periodoLabel+'</div>'
+        +'</div>'
+      +'</div>'
+      // Metadados (4 campos)
+      +'<div style="display:flex;border-top:1px solid #d0dfe0">'
+        +'<div style="flex:1;padding:7px 12px;border-right:1px solid #d0dfe0">'
+          +'<div style="font-size:7.5px;font-weight:700;color:#005E51;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Data do Documento</div>'
+          +'<div style="font-size:11px;font-weight:600">'+dataDoc+'</div>'
+        +'</div>'
+        +'<div style="flex:1.8;padding:7px 12px;border-right:1px solid #d0dfe0">'
+          +'<div style="font-size:7.5px;font-weight:700;color:#005E51;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Responsável</div>'
+          +'<div style="font-size:11px;font-weight:600">'+nomeResp+'</div>'
+        +'</div>'
+        +'<div style="flex:1;padding:7px 12px;border-right:1px solid #d0dfe0">'
+          +'<div style="font-size:7.5px;font-weight:700;color:#005E51;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">A/C</div>'
+          +'<div style="font-size:11px;font-weight:600">Setor RH</div>'
+        +'</div>'
+        +'<div style="flex:2.5;padding:7px 12px">'
+          +'<div style="font-size:7.5px;font-weight:700;color:#005E51;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Escala</div>'
+          +'<div style="font-size:11px;font-weight:600">'+setor.nome+' de '+iniLongo+' a '+fimLongo+'</div>'
+        +'</div>'
+      +'</div>'
+    +'</div>'
+
+    // ── Semanas ──
+    +weeksHtml
+
+    // ── Legenda ──
+    +'<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;padding:5px 0;border-top:1px solid #c4ccd2;font-size:8px;color:#546e7a">'
+      +'<span><b style="color:#008F79">✓</b> Plantão &nbsp;</span>'
+      +'<span><b style="color:#005E51">✓CC</b> Centro Cirúrgico &nbsp;</span>'
+      +'<span><b style="color:#1565c0">7h-19h</b> Compensação Noturna &nbsp;</span>'
+      +'<span>■ Fundo laranja = Manhã &nbsp;</span>'
+      +'<span>■ Fundo azul = Tarde &nbsp;</span>'
+      +'<span>■ Fundo amarelo = Noite</span>'
+    +'</div>'
+
+    // ── Rodapé ──
+    +'<div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:6px;border-top:1px solid #e0e0e0;font-size:8px;color:#aaa">'
+      +'<span>2S Escala · '+setor.nome+' · '+setor.unidade+'</span>'
+      +'<span>Gerado em '+dataDoc+' · Documento interno · Setor RH</span>'
+    +'</div>'
+
+    +'<script>window.onload=function(){setTimeout(function(){window.print();},700);};<\/script>'
+    +'</body></html>';
+
+  const win = window.open('','_blank','width=960,height=780');
+  if(!win){
+    mostrarToast('⚠️ Pop-up bloqueado — permita pop-ups para este site e tente novamente','#c0392b');
+    return;
+  }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  mostrarToast('📋 Relatório RH aberto — escolha "Salvar como PDF" na janela de impressão','#005E51');
+}
+
 async function gerarImagemWhatsApp(){
   const btn=document.getElementById('btnWhatsApp');
   if(typeof html2canvas==='undefined'){
