@@ -2657,7 +2657,7 @@ function confirmarPdfRH(){
   fecharRhModal();
   _gerarPdfRH(ini, fim);
 }
-function _gerarPdfRH(ini, fim){
+async function _gerarPdfRH(ini, fim){
   const hoje   = new Date();
 
   // Semanas que se sobrepõem ao período
