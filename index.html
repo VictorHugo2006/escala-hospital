@@ -2032,6 +2032,7 @@ const ST = {
   aguardando_gestor:{t:'Aguardando autorização do gestor', c:'#b8860b'},
   autorizada:       {t:'Autorizada ✓',                 c:'#008F79'},
   recusada_gestor:  {t:'Recusada pelo gestor',         c:'#c0392b'},
+  cancelada:        {t:'Cancelada (escala restaurada)', c:'#7a6f00'},
 };
 function descTroca(t){
   return nomeColab(t.deId)+' passa o Dia de agenda oficial (<b>'+DIAS[t.diaA]+'</b>) e assume o Dia Trocado (<b>'+DIAS[t.diaB]+'</b>) de '+nomeColab(t.paraId)+' &middot; '+semanaLabel(t.semanaId);
@@ -2144,6 +2145,23 @@ function autorizarTroca(id){
   save(); renderTrocas(); renderEscala(); refreshInbox();
 }
 function recusarGestor(id){ const t=state.trocas.find(x=>x.id===id); if(!t)return; t.status='recusada_gestor'; t.lidaGestor=true; save(); renderTrocas(); refreshInbox(); }
+function cancelarTrocaAutorizada(id){
+  const t=state.trocas.find(x=>x.id===id); if(!t || t.status!=='autorizada') return;
+  if(!confirm('Cancelar a troca autorizada e restaurar a escala original?\n\n'+nomeColab(t.deId)+' volta a '+DIAS_CURTO[t.diaA]+'\n'+nomeColab(t.paraId)+' volta a '+DIAS_CURTO[t.diaB])) return;
+  const wk=t.semanaId;
+  const eA=state.escala[wk] && state.escala[wk][t.deId];
+  const eB=state.escala[wk] && state.escala[wk][t.paraId];
+  if(Array.isArray(eA)&&Array.isArray(eB)){
+    // swap reverso: o que está agora em eB[diaA] pertence a A; o que está em eA[diaB] pertence a B
+    const restA=eB[t.diaA], restB=eA[t.diaB];
+    eA[t.diaA]=restA||eA[t.diaA]||'X'; eB[t.diaA]='';
+    eB[t.diaB]=restB||eB[t.diaB]||'X'; eA[t.diaB]='';
+    delete state.trocaCells[wk+'|'+t.paraId+'|'+t.diaA];
+    delete state.trocaCells[wk+'|'+t.deId+'|'+t.diaB];
+  }
+  t.status='cancelada'; t.lidaGestor=true;
+  save(); renderTrocas(); renderEscala(); refreshInbox();
+}
 // ---- render ----
 function cardTroca(t, acoes, nova){
   const s=ST[t.status]||{t:t.status,c:'#555'};
@@ -2187,9 +2205,12 @@ function renderTrocas(){
       return '<div class="troca-card'+(nova?' nova':'')+'"><div class="desc">'+nomeColab(f.colabId)+' pede folga em <b>'+formatarDataBR(f.dataISO)+'</b> ('+(f.dia===5?'sábado':'domingo')+')</div><div class="st" style="color:#b8860b">'+(nova?'🔵 ':'')+'Aguardando sua aprovação</div>'+(f.motivo?'<div class="st" style="color:#5c6b75">Motivo: '+f.motivo+'</div>':'')+'<div class="ac"><button class="btn ok mini" onclick="aprovarFolga(\''+f.id+'\')">✓ Aprovar</button><button class="btn no mini" onclick="recusarFolga(\''+f.id+'\')">✗ Recusar</button></div></div>';
     }).join('') : '<div class="troca-empty">Nenhum pedido de folga pendente.</div>';
     html+='</div>';
-    const hist=state.trocas.filter(t=>t.status==='autorizada'||t.status==='recusada_gestor'||t.status==='recusada_colega').slice().reverse();
+    const hist=state.trocas.filter(t=>t.status==='autorizada'||t.status==='recusada_gestor'||t.status==='recusada_colega'||t.status==='cancelada').slice().reverse();
     html+='<div class="troca-sec"><h3>📋 Histórico de trocas</h3>';
-    html+= hist.length? hist.map(t=>cardTroca(t,null,false)).join('') : '<div class="troca-empty">Sem histórico ainda.</div>';
+    html+= hist.length? hist.map(t=>{
+      const ac = t.status==='autorizada' ? '<button class="btn no mini" onclick="cancelarTrocaAutorizada(\''+t.id+'\')">↺ Cancelar troca</button>' : null;
+      return cardTroca(t,ac,false);
+    }).join('') : '<div class="troca-empty">Sem histórico ainda.</div>';
     html+='</div>';
   }
   document.getElementById('trocaWrap').innerHTML=html;
