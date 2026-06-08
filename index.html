@@ -1044,6 +1044,11 @@ function onCellClick(ev){
   let next;
   if(cur==='' ) next='X'; else if(cur==='X') next=(podeCC?'CC':''); else if(cur==='CC') next=''; else next=''; // texto livre -> limpa
   e[day]=next;
+  // Regra noturno: quinta (dia 3) com X → preenche sábado (dia 5) com compensação 7h-19h
+  if(day===3 && next==='X' && colab && tipoDe(colab)==='noite' && !e[5]){
+    e[5]='X 7h-19h';
+    mostrarToast('🌙→☀️ Sábado (7h–19h) adicionado automaticamente para '+colab.nome.split(' ')[0],'#005E51');
+  }
   save(); renderEscala();
 }
 function onCellDbl(ev){
@@ -1056,6 +1061,12 @@ function onCellDbl(ev){
   const txt = prompt('Texto da célula (deixe vazio para folga). Ex.: X, X 7h-19h, Férias, Atestado', e[day]||'');
   if(txt===null) return;
   e[day]=txt.trim();
+  // Regra noturno: quinta (dia 3) manualmente com X → preenche sábado (dia 5) se vazio
+  const colab = state.colaboradores.find(x=>x.id===cid);
+  if(day===3 && e[3]==='X' && colab && tipoDe(colab)==='noite' && !e[5]){
+    e[5]='X 7h-19h';
+    mostrarToast('🌙→☀️ Sábado (7h–19h) adicionado automaticamente para '+colab.nome.split(' ')[0],'#005E51');
+  }
   save(); renderEscala();
 }
 
