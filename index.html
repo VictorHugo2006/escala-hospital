@@ -3,13 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#1e9e57">
+<meta name="theme-color" content="#005E51">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="2S Escala">
 <title>2S Escala</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='white'/><text x='11' y='68' font-family='Arial Black,Impact,sans-serif' font-size='56' font-weight='900' fill='%23005E51'>2</text><text x='49' y='68' font-family='Arial Black,Impact,sans-serif' font-size='56' font-weight='900' fill='%23008F79'>S</text><path d='M7 78 Q50 95 93 68' stroke='%234FBFF1' stroke-width='6' fill='none' stroke-linecap='round'/></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='white'/><text x='11' y='68' font-family='Arial Black,Impact,sans-serif' font-size='56' font-weight='900' fill='%23005E51'>2</text><text x='49' y='68' font-family='Arial Black,Impact,sans-serif' font-size='56' font-weight='900' fill='%23008F79'>S</text><path d='M7 78 Q50 95 93 68' stroke='%234FBFF1' stroke-width='6' fill='none' stroke-linecap='round'/></svg>">
 <style>
   :root{
     --manha:#fdead0; --manha-h:#fcd5b4;
@@ -18,19 +21,20 @@
     --noite:#fff8c9; --noite-h:#fdf0a0;
     --sab:#c9d4cb; --dom:#dcd6ec;
     --rosa:#f0a8d6; --azul:#4f81bd;
-    --verde:#1e9e57; --verde-d:#157a43;
-    --linha:#9aa7b0; --txt:#1f2a33;
+    --verde:#008F79; --verde-d:#005E51;
+    --azul-2s:#4FBFF1;
+    --linha:#9aa7b0; --txt:#333333;
     --bg:#eef2f5;
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+  body{margin:0;font-family:'Montserrat',"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
   header.top{background:linear-gradient(135deg,var(--verde),var(--verde-d));color:#fff;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.15)}
   header.top h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.3px}
   header.top .sub{font-size:12px;opacity:.9}
   .spacer{flex:1}
   .tabs{display:flex;gap:4px;background:#fff;padding:0 12px;border-bottom:2px solid #d6dde2;position:sticky;top:0;z-index:20;overflow-x:auto}
   .tab{padding:12px 16px;border:none;background:none;font-size:14px;font-weight:600;color:#5c6b75;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
-  .tab.active{color:var(--verde-d);border-bottom-color:var(--verde)}
+  .tab.active{color:var(--verde-d);border-bottom-color:var(--azul-2s)}
   .tab:hover{color:var(--verde-d)}
   main{padding:16px;max-width:1280px;margin:0 auto}
   .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
@@ -52,7 +56,7 @@
   .colab-painel h2{margin:0 0 4px;font-size:18px;color:var(--verde-d)}
   .colab-painel .acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   .colab-alerta{background:#fff6e0;border:1px solid #e0c060;border-radius:8px;padding:8px 12px;color:#7a5a00;font-size:13px;font-weight:600;margin-top:8px}
-  .colab-dica{background:#eef6f0;border:1px solid #bfe0cb;border-radius:8px;padding:8px 12px;color:#177a3c;font-size:12.5px;margin-top:8px}
+  .colab-dica{background:#eef6f0;border:1px solid #bfe0cb;border-radius:8px;padding:8px 12px;color:#008F79;font-size:12.5px;margin-top:8px}
   select,input[type=text]{padding:8px 10px;border:1px solid #c4ccd2;border-radius:8px;font-size:13px;font-family:inherit}
   .card{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden;margin-bottom:18px}
   .week-bar{background:var(--verde);color:#fff;text-align:center;font-weight:700;font-size:16px;padding:8px;letter-spacing:.5px}
@@ -76,7 +80,7 @@
   body.editing td.cell{cursor:pointer}
   body.editing td.cell:hover{outline:2px solid var(--verde);outline-offset:-2px}
   .mk{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:23px;padding:0 8px;border-radius:12px;font-size:12.5px;font-weight:800;color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.18)}
-  .mk-x{background:#1e9e57}
+  .mk-x{background:var(--verde)}
   .mk-cc{background:#fbe3df;color:#c0392b;letter-spacing:.5px;font-size:10.5px;font-weight:700;box-shadow:none;min-width:0;height:19px;padding:0 6px}
   .mk+.mk{margin-left:3px}
   .mk-txt{font-size:11px;font-weight:700;color:#37434d}
@@ -97,7 +101,7 @@
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
   .chip{padding:5px 11px;font-size:12px}
   .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
-  .geninfo{background:#eef6f0;border:1px solid #bfe0cb;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#177a3c;min-height:18px}
+  .geninfo{background:#eef6f0;border:1px solid #bfe0cb;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#008F79;min-height:18px}
   .modal .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
   .modal .fld label{font-size:11px;color:#7a8893;font-weight:600;text-transform:uppercase}
   .modal .fld select{font-size:14px;padding:8px 10px;border:1px solid #c4ccd2;border-radius:8px}
@@ -125,10 +129,10 @@
   .troca-sec h3{margin:10px 0 8px;font-size:15px;color:var(--verde-d)}
   .troca-empty{color:#90a0aa;font-size:13px;font-style:italic}
   .btn.mini{padding:5px 12px;font-size:12px}
-  .btn.ok{background:#177a3c;color:#fff;border-color:#0f5a2b}
+  .btn.ok{background:#008F79;color:#fff;border-color:#005E51}
   .btn.no{background:#fff;color:#c0392b;border-color:#e0a8a0}
   .avisos{background:#fff6e0;border:1px solid #e0c060;border-radius:10px;padding:10px 16px;margin-top:12px;font-size:13px;color:#7a5a00}
-  .avisos.ok{background:#e7f6ec;border-color:#9bd3ad;color:#177a3c}
+  .avisos.ok{background:#e7f6ec;border-color:#9bd3ad;color:#008F79}
   .avisos ul{margin:6px 0 0;padding-left:20px}
   .avisos li{margin:2px 0}
   .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;padding:10px 14px;background:#fff;border-radius:10px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
@@ -140,7 +144,7 @@
   .day-row .dlabel{width:150px;font-weight:700}
   .day-row .dlabel small{display:block;font-weight:500;color:#7a8893}
   .badge{padding:4px 12px;border-radius:20px;font-weight:700;font-size:12.5px}
-  .b-work{background:#d6f0dd;color:#177a3c}
+  .b-work{background:#d6f0dd;color:#008F79}
   .b-cc{background:#fde2dc;color:#c0392b}
   .b-off{background:#eef0f2;color:#90a0aa}
   .b-wknd{background:#e7dcf5;color:#6b3fa0}
@@ -295,8 +299,9 @@
 <body>
 <header class="top">
   <div>
-    <h1 id="appTitle">2S Escala</h1>
-    <div class="sub" id="headerSub">Hospital Santa Catarina · Escala de Plantões</div>
+    <h1 id="appTitle" style="font-weight:900;letter-spacing:.5px">2S Escala</h1>
+    <div class="sub" style="font-size:9px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;opacity:.85;margin-bottom:1px">Gestão Inteligente de Plantões</div>
+    <div class="sub" id="headerSub" style="opacity:.9">Hospital Santa Catarina · Raio-X</div>
   </div>
   <div class="spacer"></div>
   <span id="syncStatus" style="font-size:11px;color:rgba(255,255,255,.75);white-space:nowrap"></span>
@@ -346,7 +351,7 @@
       <div class="it"><span style="color:#c0392b;font-weight:700;font-size:12px">🔄 troca</span> = Dia Trocado (troca aprovada pelo gestor)</div>
     </div>
     <div id="printHeader" class="print-only" style="text-align:center;padding:6px 0 10px;border-bottom:2px solid #2e7d32;margin-bottom:8px">
-      <div style="font-size:22px;font-weight:900;letter-spacing:.5px;color:#1b5e20" id="printTitle">ESCALA DE PLANTÕES</div>
+      <div style="font-size:22px;font-weight:900;letter-spacing:.5px;color:#005E51" id="printTitle">ESCALA DE PLANTÕES</div>
       <div id="printSetorSub" style="font-size:13px;font-weight:600;color:#37474f;margin-top:2px">2S Escala · Raio-X · Hospital Santa Catarina</div>
       <div style="font-size:12px;color:#546e7a;margin-top:3px" id="printWeekLabel"></div>
     </div>
@@ -377,7 +382,7 @@
     <div class="toolbar">
       <span class="sel-colab"><label style="font-weight:600">Sou o(a):</label>
       <select id="euSel"></select></span>
-      <span id="trocaQuem" class="user-chip" style="display:none;color:#1f2a33;background:#eef2f5"></span>
+      <span id="trocaQuem" class="user-chip" style="display:none;color:#333333;background:#eef2f5"></span>
       <button class="btn primary" id="btnNovaTroca">➕ Solicitar troca</button>
       <span class="spacer"></span>
     </div>
@@ -580,16 +585,22 @@
 </div>
 
 <!-- Login Gate — tela de entrada obrigatória -->
-<div id="loginGate" style="display:none;position:fixed;inset:0;z-index:9998;background:linear-gradient(150deg,#1b7a42,#0a4a25);align-items:center;justify-content:center;padding:20px;overflow-y:auto">
+<div id="loginGate" style="display:none;position:fixed;inset:0;z-index:9998;background:linear-gradient(150deg,#008F79,#003c30);align-items:center;justify-content:center;padding:20px;overflow-y:auto">
   <div style="background:#fff;border-radius:20px;padding:36px 28px;width:min(380px,100%);box-shadow:0 20px 60px rgba(0,0,0,.4)">
     <div style="text-align:center;margin-bottom:28px">
-      <div style="font-size:44px;margin-bottom:10px">🏥</div>
-      <div style="font-size:24px;font-weight:900;color:#1b5e20;line-height:1.2;letter-spacing:.3px">2S Escala</div>
-      <div id="lgSetorSub" style="font-size:13px;color:#546e7a;margin-top:5px;font-weight:600">Hospital Santa Catarina · Raio-X</div>
+      <div style="margin-bottom:12px">
+        <svg viewBox="0 0 120 56" width="140" height="65" xmlns="http://www.w3.org/2000/svg">
+          <text x="4" y="48" font-family="Arial Black,Impact,sans-serif" font-size="52" font-weight="900" fill="#005E51">2</text>
+          <text x="54" y="48" font-family="Arial Black,Impact,sans-serif" font-size="52" font-weight="900" fill="#008F79">S</text>
+          <path d="M2 52 Q60 68 118 44" stroke="#4FBFF1" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div style="font-size:9px;font-weight:700;color:#4FBFF1;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Gestão Inteligente de Plantões</div>
+      <div id="lgSetorSub" style="font-size:12px;color:#8a9aaa;font-weight:600">Hospital Santa Catarina · Raio-X</div>
     </div>
     <div style="margin-bottom:14px">
       <label style="font-size:11px;font-weight:700;color:#7a8893;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:7px">Quem é você?</label>
-      <select id="gateUser" onchange="gateOnUserChange()" style="width:100%;padding:13px 14px;border:2px solid #e0e7ec;border-radius:10px;font-size:15px;font-family:inherit;background:#fff;color:#1f2a33;outline:none">
+      <select id="gateUser" onchange="gateOnUserChange()" style="width:100%;padding:13px 14px;border:2px solid #e0e7ec;border-radius:10px;font-size:15px;font-family:inherit;background:#fff;color:#333333;outline:none">
         <option value="">Selecione seu nome...</option>
       </select>
     </div>
@@ -603,11 +614,11 @@
       <input type="password" id="gateSenha2" placeholder="••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter')tentarLoginGate()"
         style="width:100%;padding:13px;border:2px solid #e0e7ec;border-radius:10px;font-size:20px;letter-spacing:5px;text-align:center;font-family:monospace;outline:none">
     </div>
-    <div id="gatePrimeiroAcesso" style="display:none;background:#e8f5e9;border-radius:8px;padding:10px 13px;font-size:12.5px;color:#1b5e20;font-weight:600;margin-bottom:12px">
+    <div id="gatePrimeiroAcesso" style="display:none;background:#e8f5e9;border-radius:8px;padding:10px 13px;font-size:12.5px;color:#005E51;font-weight:600;margin-bottom:12px">
       👋 Primeiro acesso! Crie sua senha — ela será pedida nas próximas vezes.
     </div>
     <div id="gateErro" style="display:none;background:#fde8e8;border-radius:8px;padding:10px 13px;font-size:13px;color:#c0392b;font-weight:700;margin-bottom:12px;text-align:center"></div>
-    <button onclick="tentarLoginGate()" style="width:100%;padding:15px;background:#1e9e57;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:.5px;margin-top:4px">Entrar →</button>
+    <button onclick="tentarLoginGate()" style="width:100%;padding:15px;background:var(--verde);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:.5px;margin-top:4px;font-family:inherit">Entrar →</button>
   </div>
 </div>
 
@@ -844,7 +855,7 @@ function checkURLToken(){
     sessao={papel:'colaborador',colabId:c.id};
     salvarSessao(); fecharLoginGate(); aplicarPapel(); setTab('minha');
     history.replaceState(null,'',window.location.pathname);
-    mostrarToast('👋 Bem-vindo(a), '+c.nome.split(' ')[0]+'!','#1b5e20');
+    mostrarToast('👋 Bem-vindo(a), '+c.nome.split(' ')[0]+'!','#005E51');
     setTimeout(()=>mostrarAvisoSenhaToken(c.id), 1200);
     return true;
   }
@@ -1159,7 +1170,7 @@ function renderColab(){
       html+='<td><span class="link-colab" id="link-'+c.id+'" title="'+url+'">'+url+'</span></td>';
       html+='<td><div style="display:flex;gap:4px;flex-wrap:wrap">';
       html+='<button class="btn mini" onclick="copyLinkColab(\''+c.id+'\')" style="font-size:11px;padding:3px 8px;background:#e8f4fd;border-color:#90cce8;color:#0d47a1">📋 Copiar</button>';
-      html+='<button class="btn mini" onclick="copiarMsgWA(\''+c.id+'\')" style="font-size:11px;padding:3px 8px;background:#e8f5e9;border-color:#a5d6a7;color:#1b5e20">💬 WhatsApp</button>';
+      html+='<button class="btn mini" onclick="copiarMsgWA(\''+c.id+'\')" style="font-size:11px;padding:3px 8px;background:#e8f5e9;border-color:#a5d6a7;color:#005E51">💬 WhatsApp</button>';
       html+='</div></td></tr>';
     });
     html+='</tbody></table></div>';
@@ -1858,7 +1869,7 @@ const ST = {
   aguardando_colega:{t:'Aguardando aceite do colega', c:'#b8860b'},
   recusada_colega:  {t:'Recusada pelo colega',         c:'#c0392b'},
   aguardando_gestor:{t:'Aguardando autorização do gestor', c:'#b8860b'},
-  autorizada:       {t:'Autorizada ✓',                 c:'#177a3c'},
+  autorizada:       {t:'Autorizada ✓',                 c:'#008F79'},
   recusada_gestor:  {t:'Recusada pelo gestor',         c:'#c0392b'},
 };
 function descTroca(t){
@@ -2044,7 +2055,7 @@ function renderConfig(){
   // card setor atual
   html+='<div style="background:#eef6f0;border:1.5px solid #bfe0cb;border-radius:12px;padding:16px 20px;margin-bottom:22px;display:flex;align-items:center;gap:16px">';
   html+='<span id="cfgIconePreview" style="font-size:42px;line-height:1">'+s.icone+'</span>';
-  html+='<div><div style="font-size:20px;font-weight:900;color:#1b5e20">'+s.nome+'</div>';
+  html+='<div><div style="font-size:20px;font-weight:900;color:#005E51">'+s.nome+'</div>';
   html+='<div style="font-size:13px;color:#546e7a;margin-top:3px">'+s.unidade+'</div></div>';
   html+='</div>';
   // formulário (apenas gestores)
@@ -2081,7 +2092,7 @@ function salvarSetor(){
   if(!state.config) state.config={antecedenciaDias:60};
   state.config.setor={icone,nome,unidade};
   save(); atualizarIdentidade(); renderConfig();
-  mostrarToast('✅ Identificação salva — '+icone+' '+nome+' · '+unidade,'#1b5e20');
+  mostrarToast('✅ Identificação salva — '+icone+' '+nome+' · '+unidade,'#005E51');
 }
 function formatarDataBR(iso){ const p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 function abrirFolga(){
@@ -2142,7 +2153,7 @@ function renderFolLista(){
   const list=(state.folgas||[]).filter(f=> eu? f.colabId===eu : true).slice().reverse();
   let h='<h3 style="font-size:15px;margin:18px 0 8px;color:var(--verde-d)">Meus pedidos de folga</h3>';
   if(!list.length){ wrap.innerHTML=h+'<div class="troca-empty">Nenhum pedido ainda.</div>'; return; }
-  const ST={pendente:['Aguardando aprovação da gestora','#b8860b'],aprovada:['Aprovada ✓','#177a3c'],recusada:['Recusada','#c0392b']};
+  const ST={pendente:['Aguardando aprovação da gestora','#b8860b'],aprovada:['Aprovada ✓','#008F79'],recusada:['Recusada','#c0392b']};
   h+=list.map(f=>{ const s=ST[f.status]||['',''];
     return '<div class="troca-card"><div class="desc">Folga em '+formatarDataBR(f.dataISO)+' ('+(f.dia===5?'Sáb':'Dom')+')</div><div class="st" style="color:'+s[1]+'">'+s[0]+'</div>'+(f.motivo?'<div class="st" style="color:#5c6b75">Motivo: '+f.motivo+'</div>':'')+(f.status==='pendente'?'<div class="ac"><button class="btn no mini" onclick="cancelarFolga(\''+f.id+'\')">Cancelar</button></div>':'')+'</div>';
   }).join('');
@@ -2287,7 +2298,7 @@ function tentarLoginGate(){
   }
   salvarSessao(); fecharLoginGate(); aplicarPapel();
   const primeiroNome=(isGestor?((state.gestores||[]).find(x=>x.id===uid)||{}).nome:nomeColab(uid)||'').split(' ')[0];
-  mostrarToast('👋 Bem-vindo(a), '+primeiroNome+'!','#1b5e20');
+  mostrarToast('👋 Bem-vindo(a), '+primeiroNome+'!','#005E51');
   setTab(isGestor?'escala':'minha');
 }
 function logout(){
@@ -2374,7 +2385,7 @@ document.getElementById('tknOk').addEventListener('click',()=>{
   const c=state.colaboradores.find(x=>x.id===id);
   if(c){ c.senha=s1; save(); }
   document.getElementById('tokenSenhaModal').style.display='none';
-  mostrarToast('✅ Senha criada! Use-a para entrar direto na próxima vez.','#1b5e20');
+  mostrarToast('✅ Senha criada! Use-a para entrar direto na próxima vez.','#005E51');
 });
 /* ---- Reset de senha pelo gestor ---- */
 function resetSenhaColab(id){
@@ -2390,7 +2401,7 @@ function copyLinkColab(id){
   const BASE=window.location.origin+window.location.pathname;
   const url=BASE+'?c='+c.token;
   navigator.clipboard.writeText(url).then(()=>{
-    mostrarToast('🔗 Link de '+c.nome.split(' ')[0]+' copiado!','#1b5e20');
+    mostrarToast('🔗 Link de '+c.nome.split(' ')[0]+' copiado!','#005E51');
   }).catch(()=>{ prompt('Copie o link abaixo:',url); });
 }
 function copiarMsgWA(id){
@@ -2400,7 +2411,7 @@ function copiarMsgWA(id){
   const primeiroNome=c.nome.split(' ')[0];
   const msg='Olá, '+primeiroNome+'! 🏥\nAgora temos o 2S Escala — sistema online de escala de plantões do Hospital Santa Catarina.\n\nClique no link abaixo para acessar seu painel:\n👉 '+url+'\n\n📌 Salve nos favoritos para acessar sempre!';
   navigator.clipboard.writeText(msg).then(()=>{
-    mostrarToast('💬 Mensagem de '+primeiroNome+' copiada! Cole no WhatsApp.','#1b5e20');
+    mostrarToast('💬 Mensagem de '+primeiroNome+' copiada! Cole no WhatsApp.','#005E51');
   }).catch(()=>{ alert('Mensagem para '+primeiroNome+':\n\n'+msg); });
 }
 // (old loginModal listeners replaced by loginGate)
@@ -2433,7 +2444,7 @@ async function copiarPreviewClipboard(){
   }
   fecharPreviewImg();
   if(copiado){
-    mostrarToast('✅ Imagem copiada! Cole no WhatsApp com Ctrl+V','#1b5e20');
+    mostrarToast('✅ Imagem copiada! Cole no WhatsApp com Ctrl+V','#005E51');
   } else {
     // fallback: abre em nova aba para clicar-direito → copiar
     const janela=window.open();
@@ -2480,7 +2491,7 @@ async function gerarImagemWhatsApp(){
 
     // ── Cabeçalho colorido ──
     const hdr=document.createElement('div');
-    hdr.style.cssText='background:#1b5e20;color:#fff;padding:14px 22px 12px;text-align:center';
+    hdr.style.cssText='background:#005E51;color:#fff;padding:14px 22px 12px;text-align:center';
     hdr.innerHTML='<div style="font-size:20px;font-weight:900;letter-spacing:.4px">ESCALA DE PLANTÕES</div>'
       +'<div style="font-size:12px;opacity:.88;margin-top:3px;font-weight:600">'+(() => { const s=cfgSetor(); return '2S Escala · '+s.nome+' · '+s.unidade; })()+'</div>'
       +(wkLbl?'<div style="font-size:12px;opacity:.80;margin-top:2px">'+wkLbl.textContent+'</div>':'');
