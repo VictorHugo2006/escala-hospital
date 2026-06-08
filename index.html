@@ -762,10 +762,10 @@ const COLAB_PADRAO = [
   {id:'alessandra',  nome:'ALESSANDRA',       horario:'13h-19h',    periodo:'tarde'},
   {id:'abraao',      nome:'ABRAÃO',           horario:'7h-19h',     periodo:'especial'},
   {id:'pedro',       nome:'PEDRO',            horario:'18h-22:48h', periodo:'noite'},
-  {id:'thais',       nome:'THAIS',            horario:'19h-7h',     periodo:'noite'},
-  {id:'vanderlei',   nome:'VANDERLEI',        horario:'19h-7h',     periodo:'noite'},
-  {id:'fernandajustino', nome:'FERNANDA JUSTINO', horario:'19h-7h', periodo:'noite'},
-  {id:'rosimeri',    nome:'ROSIMERI',         horario:'19h-7h',     periodo:'noite'},
+  {id:'thais',       nome:'THAIS',            horario:'19h-7h',     periodo:'noite', rotSlot0:3},
+  {id:'vanderlei',   nome:'VANDERLEI',        horario:'19h-7h',     periodo:'noite', rotSlot0:1},
+  {id:'fernandajustino', nome:'FERNANDA JUSTINO', horario:'19h-7h', periodo:'noite', rotSlot0:0},
+  {id:'rosimeri',    nome:'ROSIMERI',         horario:'19h-7h',     periodo:'noite', rotSlot0:2},
 ];
 
 // '' vazio | 'X' | 'CC' (exibido X (CC)) | texto livre
@@ -982,6 +982,15 @@ function migrar(s){
   if(!s._migs.feriadosBR2026){
     FERIADOS_PADRAO.forEach(f=>{ if(!s.feriados.some(x=>x.dataISO===f.dataISO)) s.feriados.push(deepClone(f)); });
     s._migs.feriadosBR2026=true;
+  }
+  // rotSlot0: slot inicial de cada noturno para rodízio correto (corresponde ao ESCALA_PADRAO)
+  if(!s._migs.rotSlot0){
+    const _SLOT0={thais:3, vanderlei:1, fernandajustino:0, rosimeri:2};
+    s.colaboradores.forEach(c=>{
+      if(c.periodo==='noite' && c.id!=='pedro' && c.rotSlot0===undefined)
+        c.rotSlot0 = (_SLOT0[c.id] !== undefined) ? _SLOT0[c.id] : 0;
+    });
+    s._migs.rotSlot0=true;
   }
 }
 function load(){
@@ -1697,17 +1706,18 @@ function gerarSemana(colaboradores, histList, folgasMap){
   aplicaCC(manha); aplicaCC(tarde);
 
   // NOITE: rodízio de 4 semanas — intervalo ≥4 dias intra e cross-week (regra 72h respeitada)
-  // Posição 0 = Qui(noite) + Sáb 7h-19h (compensação diurna)
-  // Posição 1 = Seg + Sex   | Posição 2 = Ter + Sáb(noite) | Posição 3 = Qua + Dom
-  // Quem está na posição 0 trabalha quinta e sábado — conforme regra da equipe
+  // Slots: 0=Qui+Sáb(dia)  1=Seg+Sex  2=Ter+Sáb(noite)  3=Qua+Dom
+  // Regra: 12h noite → 72h folga → 12h noite (24h/semana); Qui exige Sáb 7h-19h de compensação
+  // rotSlot0 por colaborador garante continuidade com as semanas iniciais do ESCALA_PADRAO
   const rotNoite=[
-    {dias:[3],comp:5},  // Qui(noite) + Sáb 7h-19h
-    {dias:[0,4]},       // Seg + Sex
-    {dias:[1,5]},       // Ter + Sáb(noite)
-    {dias:[2,6]},       // Qua + Dom
+    {dias:[3],comp:5},  // Qui(noite) + Sáb 7h-19h  [slot 0]
+    {dias:[0,4]},       // Seg + Sex                 [slot 1]
+    {dias:[1,5]},       // Ter + Sáb(noite)          [slot 2]
+    {dias:[2,6]},       // Qua + Dom                 [slot 3]
   ];
   noite.forEach((c,j)=>{
-    const rot=rotNoite[(j+histList.length)%rotNoite.length];
+    const slotBase = (c.rotSlot0 !== undefined) ? c.rotSlot0 : j;
+    const rot=rotNoite[(slotBase+histList.length)%rotNoite.length];
     rot.dias.forEach(d=>{ out[c.id][d]='X'; });
     if('comp' in rot) out[c.id][rot.comp]='X 7h-19h';
   });
