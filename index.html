@@ -452,7 +452,7 @@
       <h3>Criar as próximas semanas e meses</h3>
       <p>Com o <b>Modo Gestor</b> ativo, na aba <b>Escala</b>, ao lado do seletor de semanas:</p>
       <ul>
-        <li><b>⚙️ Gerar escala (auto)</b> — abre um diálogo para escolher <b>quantas semanas/meses</b> gerar. O sistema cria tudo seguindo as regras (24h, rodízio de FDS por justiça, CC, noturno 12×72 e compensação) — a base já vem quase pronta.</li>
+        <li><b>⚙️ Gerar escala (auto)</b> — abre um diálogo para escolher <b>quantas semanas/meses</b> gerar. O sistema cria tudo seguindo as regras (24h, rodízio de FDS por justiça, CC, noturno 12×72 e compensação) — a base já vem quase pronta. <b>Noturno:</b> ciclo de 4 semanas — Qui+Sáb*, Seg+Sex, Ter+Sáb, Qua+Dom — garantindo ≥72h de descanso e rodízio justo. Quem trabalha quinta-feira recebe sábado 7h-19h automaticamente.</li>
         <li><b>📋 Duplicar p/ próxima</b> — cria a próxima semana <i>copiando</i> a atual.</li>
         <li><b>➕ Nova semana</b> — cria a próxima <i>em branco</i>.</li>
         <li><b>🗑️ Remover semana</b> — apaga a semana exibida.</li>
@@ -1579,14 +1579,21 @@ function gerarSemana(colaboradores, histList, folgasMap){
   }
   aplicaCC(manha); aplicaCC(tarde);
 
-  // NOITE: 2 plantões espaçados ≥72h (pares com 3 dias de intervalo), rodando por semana
-  const pares=[[0,3],[1,4],[2,5],[3,6]];
-  noite.forEach((c,j)=>{ pares[(j+histList.length)%pares.length].forEach(d=>{ out[c.id][d]='X'; }); });
-  // Sábado de compensação (1/mês por pessoa): escolhe quem está há mais tempo sem compensar
-  if(noite.length){
-    const comp=pickByRecency(noite, histList, 1, temComp)[0];
-    if(comp) out[comp.id][5]='X 7h-19h';
-  }
+  // NOITE: rodízio de 4 semanas — intervalo ≥4 dias intra e cross-week (regra 72h respeitada)
+  // Posição 0 = Qui(noite) + Sáb 7h-19h (compensação diurna)
+  // Posição 1 = Seg + Sex   | Posição 2 = Ter + Sáb(noite) | Posição 3 = Qua + Dom
+  // Quem está na posição 0 trabalha quinta e sábado — conforme regra da equipe
+  const rotNoite=[
+    {dias:[3],comp:5},  // Qui(noite) + Sáb 7h-19h
+    {dias:[0,4]},       // Seg + Sex
+    {dias:[1,5]},       // Ter + Sáb(noite)
+    {dias:[2,6]},       // Qua + Dom
+  ];
+  noite.forEach((c,j)=>{
+    const rot=rotNoite[(j+histList.length)%rotNoite.length];
+    rot.dias.forEach(d=>{ out[c.id][d]='X'; });
+    if('comp' in rot) out[c.id][rot.comp]='X 7h-19h';
+  });
   // Respeita as folgas garantidas (FDS) aprovadas: libera o dia e remaneja
   colaboradores.forEach(c=>{
     (folgasMap[c.id]||[]).forEach(dia=>{ if(out[c.id][dia]) remanejarDia(c, out[c.id], dia); });
