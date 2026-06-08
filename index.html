@@ -582,6 +582,27 @@
   </div>
 </div>
 
+<!-- modal confirmação período RH -->
+<div id="rhModal" class="modal-bg" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0;color:var(--verde-d)">📋 Relatório RH — Confirmar período</h3>
+      <button class="iconbtn" onclick="fecharRhModal()" style="font-size:18px" title="Fechar">✕</button>
+    </div>
+    <p style="font-size:13px;color:#546e7a;margin-bottom:14px">Confirme as datas do período que será incluído no relatório. Ajuste se necessário.</p>
+    <div style="display:flex;gap:12px;align-items:flex-end">
+      <div class="fld" style="flex:1"><label>Início</label><input type="date" id="rhIni"></div>
+      <div style="padding-bottom:10px;color:#7a8893;font-size:18px">→</div>
+      <div class="fld" style="flex:1"><label>Fim</label><input type="date" id="rhFim"></div>
+    </div>
+    <div id="rhAviso" style="font-size:12px;color:#e65100;margin-top:4px;display:none">⚠️ Nenhuma semana encontrada nesse período — gere as semanas primeiro.</div>
+    <div class="modal-actions" style="margin-top:18px">
+      <button class="btn" onclick="fecharRhModal()">Cancelar</button>
+      <button class="btn primary" onclick="confirmarPdfRH()">📄 Gerar PDF</button>
+    </div>
+  </div>
+</div>
+
 <!-- modal edição colaborador -->
 <div id="colabEditModal" class="modal-bg" style="display:none">
   <div class="modal" style="max-width:520px">
@@ -2600,14 +2621,43 @@ function baixarPNGPreview(){
   fecharPreviewImg();
 }
 /* ============== RELATÓRIO PDF — RH ============== */
+function toISO(d){ return d.toISOString().split('T')[0]; }
 function gerarPdfRH(){
-  // Período: dia 21 do mês atual → dia 20 do mês seguinte
-  const hoje   = new Date();
-  const mesAt  = hoje.getMonth(), anoAt = hoje.getFullYear();
+  // Abre modal de confirmação com período pré-calculado (dia 21 → dia 20)
+  const hoje  = new Date();
+  const mesAt = hoje.getMonth(), anoAt = hoje.getFullYear();
   const mesFim = mesAt===11 ? 0 : mesAt+1;
   const anoFim = mesAt===11 ? anoAt+1 : anoAt;
-  const ini    = new Date(anoAt, mesAt, 21);
-  const fim    = new Date(anoFim, mesFim, 20);
+  const ini = new Date(anoAt, mesAt, 21);
+  const fim = new Date(anoFim, mesFim, 20);
+  document.getElementById('rhIni').value = toISO(ini);
+  document.getElementById('rhFim').value = toISO(fim);
+  document.getElementById('rhAviso').style.display = 'none';
+  document.getElementById('rhModal').style.display = 'flex';
+}
+function fecharRhModal(){ document.getElementById('rhModal').style.display='none'; }
+function confirmarPdfRH(){
+  const iniStr = document.getElementById('rhIni').value;
+  const fimStr = document.getElementById('rhFim').value;
+  if(!iniStr||!fimStr){ alert('Informe as duas datas.'); return; }
+  const ini = new Date(iniStr+'T12:00:00');
+  const fim = new Date(fimStr+'T12:00:00');
+  if(fim<=ini){ alert('A data de fim deve ser posterior à data de início.'); return; }
+  // Verifica se existe alguma semana no período antes de fechar o modal
+  const temSemana = state.semanas.some(sw=>{
+    const wkIni=new Date(sw.startISO+'T12:00:00');
+    const wkFim=new Date(wkIni); wkFim.setDate(wkFim.getDate()+6);
+    return wkIni<=fim && wkFim>=ini;
+  });
+  if(!temSemana){
+    document.getElementById('rhAviso').style.display='block';
+    return;
+  }
+  fecharRhModal();
+  _gerarPdfRH(ini, fim);
+}
+function _gerarPdfRH(ini, fim){
+  const hoje   = new Date();
 
   // Semanas que se sobrepõem ao período
   const semsFiltradas = state.semanas.filter(sw=>{
@@ -2615,10 +2665,6 @@ function gerarPdfRH(){
     const wkFim = new Date(wkIni); wkFim.setDate(wkFim.getDate()+6);
     return wkIni<=fim && wkFim>=ini;
   });
-  if(!semsFiltradas.length){
-    mostrarToast('⚠️ Nenhuma semana encontrada no período — gere as semanas primeiro','#c0392b');
-    return;
-  }
 
   const setor     = cfgSetor();
   const _andResp  = state.gestores.find(g=>g.id==='andreia')||{};
