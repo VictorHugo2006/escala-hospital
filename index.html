@@ -82,9 +82,16 @@
   tr.tarde td.hora,tr.tarde td.nome{background:var(--tarde)}
   tr.especial td.hora,tr.especial td.nome{background:var(--especial)}
   tr.noite td.hora,tr.noite td.nome{background:var(--noite)}
-  td.cell{cursor:default;min-width:54px;font-weight:600}
+  td.cell{cursor:default;min-width:54px;font-weight:600;position:relative}
   body.editing td.cell{cursor:pointer}
   body.editing td.cell:hover{outline:2px solid var(--verde);outline-offset:-2px}
+  td.cell.cell-pending{background:#fff4e0!important;box-shadow:inset 0 0 0 2px #f57c00}
+  td.cell.cell-pending::after{content:'';position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;background:#f57c00;box-shadow:0 0 0 2px #fff}
+  .pending-bar{position:sticky;top:46px;z-index:18;background:linear-gradient(135deg,#fff4e0,#ffe0b2);border:2px solid #f57c00;border-radius:10px;padding:10px 14px;margin:10px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(245,124,0,.25)}
+  .pending-bar .pb-info{flex:1;min-width:180px;font-size:13px;color:#7a4a00;font-weight:600}
+  .pending-bar .pb-info b{font-size:15px;color:#bf360c}
+  .pending-bar button{font-size:13px}
+  .pending-bar .pb-list{font-size:11px;color:#7a4a00;font-weight:500;margin-top:3px;opacity:.85}
   .mk{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:23px;padding:0 8px;border-radius:12px;font-size:12.5px;font-weight:800;color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.18)}
   .mk-x{background:var(--verde)}
   .mk-cc{background:#fbe3df;color:#c0392b;letter-spacing:.5px;font-size:10.5px;font-weight:700;box-shadow:none;min-width:0;height:19px;padding:0 6px}
@@ -935,7 +942,7 @@ function checkURLToken(){
   return false;
 }
 function defaultState(){
-  return {colaboradores:deepClone(COLAB_PADRAO), escala:deepClone(ESCALA_PADRAO), semanas:deepClone(SEMANAS_PADRAO), trocas:[], trocaCells:{}, gestores:deepClone(GESTORES_PADRAO), config:{antecedenciaDias:60, setor:{icone:'☢️',nome:'Raio-X',unidade:'Hospital Santa Catarina'}}, folgas:[], folgaCells:{}, remanejoCells:{}, feriados:deepClone(FERIADOS_PADRAO), ferias:[], superAdmin:{}};
+  return {colaboradores:deepClone(COLAB_PADRAO), escala:deepClone(ESCALA_PADRAO), semanas:deepClone(SEMANAS_PADRAO), trocas:[], trocaCells:{}, gestores:deepClone(GESTORES_PADRAO), config:{antecedenciaDias:60, setor:{icone:'☢️',nome:'Raio-X',unidade:'Hospital Santa Catarina'}}, folgas:[], folgaCells:{}, remanejoCells:{}, feriados:deepClone(FERIADOS_PADRAO), ferias:[], superAdmin:{}, _pending:{}};
 }
 // migrações pontuais sobre estado salvo (idempotentes via flag)
 function migrar(s){
@@ -949,6 +956,7 @@ function migrar(s){
   }
   if(!Array.isArray(s.trocas)) s.trocas=[];
   if(!s.trocaCells) s.trocaCells={};
+  if(!s._pending) s._pending={};
   if(!Array.isArray(s.gestores)) s.gestores=deepClone(GESTORES_PADRAO);
   if(!s.config) s.config={antecedenciaDias:60};
   if(!s.config.setor) s.config.setor={icone:'☢️',nome:'Raio-X',unidade:'Hospital Santa Catarina'};
@@ -1034,10 +1042,28 @@ function updatePrintHeader(){
   const el=document.getElementById('printWeekLabel'); if(!el) return;
   el.textContent='Período: '+wk.dm[0]+' a '+wk.dm[6]+' de '+new Date(wk.startISO+'T12:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
 }
+function renderPendingBar(wkId){
+  const n = temPending(wkId);
+  if(!n || !ehGestor()) return '';
+  // Lista resumida das células alteradas
+  const p = state._pending[wkId] || {};
+  const items = [];
+  Object.keys(p).forEach(cid=>{
+    const c = state.colaboradores.find(x=>x.id===cid); const nome = c? c.nome.split(' ')[0] : cid;
+    Object.keys(p[cid]).forEach(d=>{ items.push(nome+'·'+DIAS_CURTO[+d]); });
+  });
+  const lista = items.slice(0,8).join(', ') + (items.length>8?' +'+(items.length-8)+' …':'');
+  return '<div class="pending-bar">'
+    + '<div class="pb-info">⚠️ <b>'+n+' alteração(ões) pendente(s)</b> nesta semana — confirme para validar ou descarte para reverter.<div class="pb-list">'+lista+'</div></div>'
+    + '<button class="btn ok" onclick="confirmarEdicoesPending()">✓ Confirmar alterações</button>'
+    + '<button class="btn no" onclick="descartarEdicoesPending()">↺ Descartar</button>'
+    + '</div>';
+}
 function renderEscala(){
   const wk = weekInfo(state.semanas[curWeek]);
   const fer = feriadosDaSemana(wk.startISO);
   let html = '<div class="card"><div class="week-bar">'+wk.label+'</div>';
+  html += renderPendingBar(wk.id);
   html += '<table class="escala"><thead><tr>';
   html += '<th class="col-h">Horário</th><th class="col-n">Técnico</th>';
   DIAS.forEach((d,i)=>{
@@ -1078,7 +1104,8 @@ function renderEscala(){
         if((state.folgaCells||{})[wk.id+'|'+c.id+'|'+i]) extra += '<div class="obs-folga" title="Folga solicitada (exceção registrada pela gestão)">📌 folga</div>';
         if((state.remanejoCells||{})[wk.id+'|'+c.id+'|'+i]) extra += '<div class="obs-remanejo" title="Plantão remanejado por causa de uma folga solicitada">↪ remanejado</div>';
         if(d[i] && d[i].trim() && fer[i]!==undefined) extra += '<div class="obs-feriado" title="'+fer[i]+'">FERIADO</div>';
-        html += '<td class="cell '+cls+'" data-colab="'+c.id+'" data-day="'+i+'">'+cellHTML(d[i])+extra+'</td>';
+        const pend = state._pending && state._pending[wk.id] && state._pending[wk.id][c.id] && (i in state._pending[wk.id][c.id]);
+        html += '<td class="cell '+cls+(pend?' cell-pending':'')+'" data-colab="'+c.id+'" data-day="'+i+'" '+(pend?'title="Alteração pendente — confirme ou descarte na barra acima"':'')+'>'+cellHTML(d[i])+extra+'</td>';
       }
     }
     html += '</tr>';
@@ -1101,20 +1128,63 @@ function renderEscala(){
     });
   }
 }
+// Marca uma célula como alterada (rascunho) — guarda o valor ORIGINAL para permitir descartar
+function marcarPending(wkId, cid, day, oldVal){
+  if(!state._pending) state._pending={};
+  if(!state._pending[wkId]) state._pending[wkId]={};
+  if(!state._pending[wkId][cid]) state._pending[wkId][cid]={};
+  // Só registra o original na PRIMEIRA edição da célula (preserva o snapshot pré-edições)
+  if(!(day in state._pending[wkId][cid])) state._pending[wkId][cid][day]=(oldVal===undefined?'':oldVal);
+}
+function temPending(wkId){
+  const p = state._pending && state._pending[wkId];
+  if(!p) return 0;
+  let n=0;
+  Object.keys(p).forEach(cid=>{ n += Object.keys(p[cid]||{}).length; });
+  return n;
+}
+function confirmarEdicoesPending(){
+  const wkId = state.semanas[curWeek].id;
+  const n = temPending(wkId);
+  if(!n){ mostrarToast('Sem alterações pendentes','#005E51'); return; }
+  if(!confirm('Confirmar '+n+' alteração(ões) nesta semana?')) return;
+  if(state._pending) delete state._pending[wkId];
+  save(); renderEscala();
+  mostrarToast('✓ '+n+' alteração(ões) confirmada(s)','#008F79');
+}
+function descartarEdicoesPending(){
+  const wkId = state.semanas[curWeek].id;
+  const p = state._pending && state._pending[wkId];
+  const n = temPending(wkId);
+  if(!n){ mostrarToast('Sem alterações pendentes','#005E51'); return; }
+  if(!confirm('Descartar '+n+' alteração(ões) e voltar ao estado anterior?')) return;
+  // Restaura cada célula ao seu valor original
+  const wk = state.escala[wkId] || {};
+  Object.keys(p).forEach(cid=>{
+    const e = wk[cid]; if(!Array.isArray(e)) return;
+    Object.keys(p[cid]).forEach(d=>{ e[+d] = p[cid][d]; });
+  });
+  delete state._pending[wkId];
+  save(); renderEscala();
+  mostrarToast('↺ '+n+' alteração(ões) descartada(s)','#7a4a00');
+}
 function onCellClick(ev){
   if(!editing) return;
   const td = ev.currentTarget;
   const cid = td.dataset.colab, day = +td.dataset.day;
-  const e = getEntry(state.semanas[curWeek].id, cid);
+  const wkId = state.semanas[curWeek].id;
+  const e = getEntry(wkId, cid);
   if(isSpan(e)) return;
   const colab = state.colaboradores.find(x=>x.id===cid);
   const podeCC = !colab || colab.fazCC!==false;
   const cur = e[day];
   let next;
   if(cur==='' ) next='X'; else if(cur==='X') next=(podeCC?'CC':''); else if(cur==='CC') next=''; else next=''; // texto livre -> limpa
+  marcarPending(wkId, cid, day, e[day]);
   e[day]=next;
   // Regra noturno: quinta (dia 3) com X → preenche sábado (dia 5) com compensação 7h-19h
   if(day===3 && next==='X' && colab && tipoDe(colab)==='noite' && !e[5]){
+    marcarPending(wkId, cid, 5, e[5]);
     e[5]='X 7h-19h';
     mostrarToast('🌙→☀️ Sábado (7h–19h) adicionado automaticamente para '+colab.nome.split(' ')[0],'#005E51');
   }
@@ -1125,14 +1195,17 @@ function onCellDbl(ev){
   ev.preventDefault();
   const td = ev.currentTarget;
   const cid = td.dataset.colab, day = +td.dataset.day;
-  const e = getEntry(state.semanas[curWeek].id, cid);
+  const wkId = state.semanas[curWeek].id;
+  const e = getEntry(wkId, cid);
   if(isSpan(e)) return;
   const txt = prompt('Texto da célula (deixe vazio para folga). Ex.: X, X 7h-19h, Férias, Atestado', e[day]||'');
   if(txt===null) return;
+  marcarPending(wkId, cid, day, e[day]);
   e[day]=txt.trim();
   // Regra noturno: quinta (dia 3) manualmente com X → preenche sábado (dia 5) se vazio
   const colab = state.colaboradores.find(x=>x.id===cid);
   if(day===3 && e[3]==='X' && colab && tipoDe(colab)==='noite' && !e[5]){
+    marcarPending(wkId, cid, 5, e[5]);
     e[5]='X 7h-19h';
     mostrarToast('🌙→☀️ Sábado (7h–19h) adicionado automaticamente para '+colab.nome.split(' ')[0],'#005E51');
   }
