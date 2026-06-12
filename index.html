@@ -1354,24 +1354,31 @@ function renderColab(){
       '<button class="btn primary" id="btnAddGestor">+ Adicionar gestor</button></div>';
   }
   const masterId = (state.superAdmin && state.superAdmin.linkedUserId) || '';
-  // Regra: só o próprio master atual pode trocar. Se ainda não há nenhum, qualquer gestor em modo edição pode definir (primeiro acesso).
-  const podeMexerMaster = editing && (ehSuper() || !masterId);
-  html+='<table class="colab"><thead><tr><th>Nome Completo</th><th>Apelido</th><th>Telefone</th><th>PIN</th><th>Master</th>'+(editing?'<th style="width:160px">Ações</th>':'')+'</tr></thead><tbody>';
+  const verMaster = ehSuper();
+  // Coluna Master e botões só aparecem para o próprio Master. Gestores comuns nem sabem que existe.
+  const mostrarColMaster = verMaster;
+  const podeMexerMaster = editing && verMaster;
+  html+='<table class="colab"><thead><tr><th>Nome Completo</th><th>Apelido</th><th>Telefone</th><th>PIN</th>'+(mostrarColMaster?'<th>Master</th>':'')+(editing?'<th style="width:160px">Ações</th>':'')+'</tr></thead><tbody>';
   (state.gestores||[]).forEach(g=>{
+    // Esconde o master vinculado dos gestores comuns
+    if(masterId===g.id && !verMaster) return;
     const pinStatus=g.pin?'<span class="pill" style="background:#e8f5e9;color:#2e7d32;font-size:11px">✅ Definido</span>':'<span class="pill" style="background:#fff3e0;color:#e65100;font-size:11px">⚠️ Não definido</span>';
     const gNomeCompletoCell = g.nomeCompleto ? g.nomeCompleto : '<span style="color:#aaa">—</span>';
     const gTelefoneCell = g.telefone ? '<a href="https://wa.me/55'+g.telefone.replace(/\D/g,'')+'" target="_blank" style="color:#005E51;text-decoration:none" title="Abrir WhatsApp">📱 '+g.telefone+'</a>' : '<span style="color:#aaa">—</span>';
     const ehMaster = masterId === g.id;
-    let masterCell;
-    if(ehMaster){
-      masterCell = '<span class="pill" style="background:#ffd54f;color:#5d4037;font-weight:800;font-size:11px">👑 Master</span>';
-      if(podeMexerMaster) masterCell += ' <button class="btn mini no" data-gact="unmaster" title="Revogar Master" style="font-size:10px;padding:2px 6px;margin-left:4px">Revogar</button>';
-    } else if(podeMexerMaster){
-      masterCell = '<button class="btn mini" data-gact="master" title="Definir este gestor como Master" style="font-size:11px;padding:3px 8px;background:#fff8e1;border-color:#ffd54f;color:#5d4037">👑 Tornar Master</button>';
-    } else {
-      masterCell = '<span style="color:#aaa">—</span>';
+    let masterCell = '';
+    if(mostrarColMaster){
+      if(ehMaster){
+        masterCell = '<span class="pill" style="background:#ffd54f;color:#5d4037;font-weight:800;font-size:11px">👑 Master</span>';
+        if(podeMexerMaster) masterCell += ' <button class="btn mini no" data-gact="unmaster" title="Revogar Master" style="font-size:10px;padding:2px 6px;margin-left:4px">Revogar</button>';
+      } else if(podeMexerMaster){
+        masterCell = '<button class="btn mini" data-gact="master" title="Definir este gestor como Master" style="font-size:11px;padding:3px 8px;background:#fff8e1;border-color:#ffd54f;color:#5d4037">👑 Tornar Master</button>';
+      } else {
+        masterCell = '<span style="color:#aaa">—</span>';
+      }
+      masterCell = '<td>'+masterCell+'</td>';
     }
-    html+='<tr data-gid="'+g.id+'"><td style="font-size:12px">'+gNomeCompletoCell+'</td><td><b>'+g.nome+'</b>'+(ehMaster?' 👑':'')+'</td><td style="font-size:12px;white-space:nowrap">'+gTelefoneCell+'</td><td>'+pinStatus+'</td><td>'+masterCell+'</td>';
+    html+='<tr data-gid="'+g.id+'"><td style="font-size:12px">'+gNomeCompletoCell+'</td><td><b>'+g.nome+'</b>'+(ehMaster&&verMaster?' 👑':'')+'</td><td style="font-size:12px;white-space:nowrap">'+gTelefoneCell+'</td><td>'+pinStatus+'</td>'+masterCell;
     if(editing) html+='<td><div style="display:flex;gap:4px"><button class="iconbtn" data-gact="edit" title="Editar">✏️</button><button class="btn mini" data-gact="pin" title="Alterar PIN" style="font-size:11px;padding:3px 7px;background:#e3f2fd;border-color:#90cae8;color:#1565c0">🔐 PIN</button><button class="iconbtn" data-gact="del" title="Remover">🗑️</button></div></td>';
     html+='</tr>';
   });
@@ -2492,7 +2499,9 @@ function aplicarFolgaNaEscala(f){
 }
 function aprovarFolga(id){
   const f=(state.folgas||[]).find(x=>x.id===id); if(!f)return;
-  f.status='aprovada'; f.lidaGestor=true; f.aprovadoPor=(typeof sessao!=='undefined'&&sessao.nome)||'Gestor';
+  f.status='aprovada'; f.lidaGestor=true;
+  // Master aparece como 'Gestão' para outros usuários (preserva discrição)
+  f.aprovadoPor = ehSuper() ? 'Gestão' : ((typeof sessao!=='undefined'&&sessao.nome)||'Gestor');
   aplicarFolgaNaEscala(f);   // se a semana já existe, aplica agora; senão, será respeitada ao gerar
   registrarLog('folga.aprovar', nomeColab(f.colabId)+' em '+formatarDataBR(f.dataISO));
   save(); renderTrocas(); renderEscala(); refreshInbox();
@@ -2555,12 +2564,15 @@ function fillGateUsers(){
     state.colaboradores.forEach(c=>{ html+='<option value="c:'+c.id+'">'+c.nome+'</option>'; });
     html+='</optgroup>';
   }
-  if((state.gestores||[]).length){
+  const masterId=(state.superAdmin&&state.superAdmin.linkedUserId)||'';
+  const gestoresVisiveis=(state.gestores||[]).filter(g=>g.id!==masterId);
+  if(gestoresVisiveis.length){
     html+='<optgroup label="── Gestores ──">';
-    (state.gestores||[]).forEach(g=>{ html+='<option value="g:'+g.id+'">'+g.nome+' 🛡️</option>'; });
+    gestoresVisiveis.forEach(g=>{ html+='<option value="g:'+g.id+'">'+g.nome+' 🛡️</option>'; });
     html+='</optgroup>';
   }
-  html+='<optgroup label="── Administração ──"><option value="m:master">👑 Master</option></optgroup>';
+  // Opção "👑 Master" sempre presente — quem souber a senha entra. Não revela o nome do master.
+  html+='<optgroup label="── Acesso restrito ──"><option value="m:master">🔐 Acesso administrativo</option></optgroup>';
   sel.innerHTML=html;
 }
 function gateOnUserChange(){
@@ -2576,16 +2588,18 @@ function gateOnUserChange(){
   document.getElementById('gateSenha').value='';
   setTimeout(()=>document.getElementById('gateSenha').focus(),80);
   if(isMaster){
+    const masterId=(state.superAdmin&&state.superAdmin.linkedUserId)||'';
+    const senhaVinculada=masterId?_getSenhaUsuario(masterId):null;
     const pinSalvo=state.superAdmin&&state.superAdmin.pin;
-    if(!pinSalvo){
-      document.getElementById('gateSenhaLabel').textContent='Crie o PIN do Master';
-      document.getElementById('gateSenha').placeholder='Mínimo 4 dígitos';
-      s2w.style.display=''; document.getElementById('gateSenha2').value='';
-      pa.style.display=''; pa.textContent='👑 Primeiro acesso do Master. Defina um PIN — ele será pedido nas próximas vezes.';
-    } else {
-      document.getElementById('gateSenhaLabel').textContent='PIN do Master';
+    if(senhaVinculada || pinSalvo){
+      document.getElementById('gateSenhaLabel').textContent='Senha de acesso';
       document.getElementById('gateSenha').placeholder='••••••';
       s2w.style.display='none'; pa.style.display='none';
+    } else {
+      document.getElementById('gateSenhaLabel').textContent='Crie o PIN administrativo';
+      document.getElementById('gateSenha').placeholder='Mínimo 4 dígitos';
+      s2w.style.display=''; document.getElementById('gateSenha2').value='';
+      pa.style.display=''; pa.textContent='🔐 Primeiro acesso administrativo. Defina um PIN — ele será pedido nas próximas vezes.';
     }
     return;
   }
@@ -2622,17 +2636,26 @@ function tentarLoginGate(){
   if(!senha||senha.length<4){ mostrarErroGate(isMaster?'O PIN deve ter ao menos 4 dígitos.':'A senha deve ter ao menos 4 caracteres.'); return; }
   if(isMaster){
     if(!state.superAdmin) state.superAdmin={};
+    const masterId=state.superAdmin.linkedUserId||'';
+    const senhaVinculada=masterId?_getSenhaUsuario(masterId):null;
     const pinSalvo=state.superAdmin.pin;
-    if(!pinSalvo){
+    let nomeMaster='Admin';
+    if(senhaVinculada){
+      // Aceita senha do gestor vinculado (Cilnei)
+      if(senha!==senhaVinculada && senha!==pinSalvo){ mostrarErroGate('Senha incorreta.'); document.getElementById('gateSenha').value=''; document.getElementById('gateSenha').focus(); return; }
+      const g=(state.gestores||[]).find(x=>x.id===masterId);
+      nomeMaster=g?g.nome:(nomeColab(masterId)||'Admin');
+    } else if(pinSalvo){
+      if(senha!==pinSalvo){ mostrarErroGate('PIN incorreto.'); document.getElementById('gateSenha').value=''; document.getElementById('gateSenha').focus(); return; }
+    } else {
+      // Primeiro acesso — define PIN
       const conf=document.getElementById('gateSenha2').value;
       if(senha!==conf){ mostrarErroGate('Os PINs não coincidem. Tente novamente.'); document.getElementById('gateSenha2').value=''; document.getElementById('gateSenha2').focus(); return; }
       state.superAdmin.pin=senha; save();
-    } else {
-      if(senha!==pinSalvo){ mostrarErroGate('PIN incorreto.'); document.getElementById('gateSenha').value=''; document.getElementById('gateSenha').focus(); return; }
     }
-    sessao={papel:'super',nome:'Admin'};
+    sessao={papel:'super',nome:nomeMaster};
     salvarSessao(); fecharLoginGate(); aplicarPapel();
-    registrarLog('login.master','Master entrou no sistema'); save();
+    registrarLog('login.master','Master entrou ('+nomeMaster+')'); save();
     mostrarToast('👑 Bem-vindo, Master!','#bf360c');
     setTab('escala');
     return;
