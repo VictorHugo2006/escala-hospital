@@ -703,6 +703,11 @@
         <option value="">Selecione seu nome...</option>
       </select>
     </div>
+    <div id="gateLoginWrap" style="display:none;margin-bottom:10px">
+      <label style="font-size:11px;font-weight:700;color:#7a8893;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:7px">Usuário</label>
+      <input type="text" id="gateLogin" placeholder="usuário" autocomplete="username" onkeydown="if(event.key==='Enter')tentarLoginGate()"
+        style="width:100%;padding:13px;border:2px solid #e0e7ec;border-radius:10px;font-size:15px;text-align:center;font-family:inherit;outline:none;transition:border-color .2s">
+    </div>
     <div id="gateSenhaWrap" style="display:none;margin-bottom:10px">
       <label id="gateSenhaLabel" style="font-size:11px;font-weight:700;color:#7a8893;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:7px">Senha</label>
       <input type="password" id="gateSenha" placeholder="••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')tentarLoginGate()"
@@ -2578,31 +2583,27 @@ function fillGateUsers(){
 function gateOnUserChange(){
   const val=document.getElementById('gateUser').value;
   document.getElementById('gateErro').style.display='none';
+  const lw=document.getElementById('gateLoginWrap');
   const sw=document.getElementById('gateSenhaWrap');
   const s2w=document.getElementById('gateSenha2Wrap');
   const pa=document.getElementById('gatePrimeiroAcesso');
-  if(!val){ sw.style.display='none'; s2w.style.display='none'; pa.style.display='none'; return; }
+  if(!val){ lw.style.display='none'; sw.style.display='none'; s2w.style.display='none'; pa.style.display='none'; return; }
   const isMaster=val.startsWith('m:');
   const uid=val.slice(2);
-  sw.style.display='';
   document.getElementById('gateSenha').value='';
-  setTimeout(()=>document.getElementById('gateSenha').focus(),80);
   if(isMaster){
-    const masterId=(state.superAdmin&&state.superAdmin.linkedUserId)||'';
-    const senhaVinculada=masterId?_getSenhaUsuario(masterId):null;
-    const pinSalvo=state.superAdmin&&state.superAdmin.pin;
-    if(senhaVinculada || pinSalvo){
-      document.getElementById('gateSenhaLabel').textContent='Senha de acesso';
-      document.getElementById('gateSenha').placeholder='••••••';
-      s2w.style.display='none'; pa.style.display='none';
-    } else {
-      document.getElementById('gateSenhaLabel').textContent='Crie o PIN administrativo';
-      document.getElementById('gateSenha').placeholder='Mínimo 4 dígitos';
-      s2w.style.display=''; document.getElementById('gateSenha2').value='';
-      pa.style.display=''; pa.textContent='🔐 Primeiro acesso administrativo. Defina um PIN — ele será pedido nas próximas vezes.';
-    }
+    // Acesso administrativo — pede USUÁRIO + senha (login tradicional, sem expor nome no dropdown)
+    lw.style.display=''; sw.style.display='';
+    document.getElementById('gateLogin').value='';
+    document.getElementById('gateSenhaLabel').textContent='Senha';
+    document.getElementById('gateSenha').placeholder='••••••';
+    s2w.style.display='none'; pa.style.display='none';
+    setTimeout(()=>document.getElementById('gateLogin').focus(),80);
     return;
   }
+  lw.style.display='none';
+  sw.style.display='';
+  setTimeout(()=>document.getElementById('gateSenha').focus(),80);
   const senhaSalva=_getSenhaUsuario(uid);
   if(!senhaSalva){
     document.getElementById('gateSenhaLabel').textContent='Crie sua senha';
@@ -2618,6 +2619,8 @@ function gateOnUserChange(){
 function abrirLoginGate(){
   fillGateUsers();
   document.getElementById('gateUser').value='';
+  const lw=document.getElementById('gateLoginWrap'); if(lw) lw.style.display='none';
+  const lgi=document.getElementById('gateLogin'); if(lgi) lgi.value='';
   document.getElementById('gateSenhaWrap').style.display='none';
   document.getElementById('gateSenha2Wrap').style.display='none';
   document.getElementById('gatePrimeiroAcesso').style.display='none';
@@ -2637,22 +2640,20 @@ function tentarLoginGate(){
   if(isMaster){
     if(!state.superAdmin) state.superAdmin={};
     const masterId=state.superAdmin.linkedUserId||'';
-    const senhaVinculada=masterId?_getSenhaUsuario(masterId):null;
-    const pinSalvo=state.superAdmin.pin;
-    let nomeMaster='Admin';
-    if(senhaVinculada){
-      // Aceita senha do gestor vinculado (Cilnei)
-      if(senha!==senhaVinculada && senha!==pinSalvo){ mostrarErroGate('Senha incorreta.'); document.getElementById('gateSenha').value=''; document.getElementById('gateSenha').focus(); return; }
-      const g=(state.gestores||[]).find(x=>x.id===masterId);
-      nomeMaster=g?g.nome:(nomeColab(masterId)||'Admin');
-    } else if(pinSalvo){
-      if(senha!==pinSalvo){ mostrarErroGate('PIN incorreto.'); document.getElementById('gateSenha').value=''; document.getElementById('gateSenha').focus(); return; }
-    } else {
-      // Primeiro acesso — define PIN
-      const conf=document.getElementById('gateSenha2').value;
-      if(senha!==conf){ mostrarErroGate('Os PINs não coincidem. Tente novamente.'); document.getElementById('gateSenha2').value=''; document.getElementById('gateSenha2').focus(); return; }
-      state.superAdmin.pin=senha; save();
-    }
+    const loginDigitado=((document.getElementById('gateLogin').value)||'').trim();
+    if(!loginDigitado){ mostrarErroGate('Informe o usuário.'); document.getElementById('gateLogin').focus(); return; }
+    // Valida que o usuário digitado corresponde ao gestor master vinculado
+    const g=masterId?(state.gestores||[]).find(x=>x.id===masterId):null;
+    if(!g){ mostrarErroGate('Acesso indisponível.'); return; }
+    const loginNorm=loginDigitado.toLowerCase();
+    const idMatch = loginNorm===g.id.toLowerCase();
+    const nomeMatch = (g.nome||'').toLowerCase()===loginNorm;
+    const nomeCompMatch = ((g.nomeCompleto||'').split(' ')[0]||'').toLowerCase()===loginNorm;
+    if(!idMatch && !nomeMatch && !nomeCompMatch){ mostrarErroGate('Usuário ou senha inválidos.'); document.getElementById('gateSenha').value=''; return; }
+    const senhaVinculada=_getSenhaUsuario(masterId);
+    if(!senhaVinculada){ mostrarErroGate('Defina a senha do gestor antes (entre como ele primeiro pelo PIN secreto).'); return; }
+    if(senha!==senhaVinculada){ mostrarErroGate('Usuário ou senha inválidos.'); document.getElementById('gateSenha').value=''; document.getElementById('gateSenha').focus(); return; }
+    const nomeMaster=g.nome||'Admin';
     sessao={papel:'super',nome:nomeMaster};
     salvarSessao(); fecharLoginGate(); aplicarPapel();
     registrarLog('login.master','Master entrou ('+nomeMaster+')'); save();
