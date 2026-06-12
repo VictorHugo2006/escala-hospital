@@ -53,6 +53,22 @@
   button.btn.sair:hover{background:#a93226;border-color:#922b21}
   .gestor-only{display:none!important}
   body.editing .gestor-only{display:inline-flex!important}
+  .super-only{display:none!important}
+  body.super-mode .super-only{display:inline-flex!important}
+  body.super-mode .user-chip{background:linear-gradient(135deg,#ffd54f,#ff9800)!important;color:#000!important;font-weight:800}
+  table.logs{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.logs th{background:var(--verde-d);color:#fff;padding:8px;text-align:left;font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;position:sticky;top:0}
+  table.logs td{padding:6px 8px;border-bottom:1px solid #e3e8eb;vertical-align:top}
+  table.logs tr:nth-child(odd) td{background:#fafbfc}
+  table.logs .log-ts{white-space:nowrap;color:#5c6b75;font-size:11px;font-family:monospace}
+  table.logs .log-who{font-weight:700;color:#005E51}
+  table.logs .log-acao{font-weight:700;color:#0d47a1}
+  table.logs .log-papel{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;text-transform:uppercase}
+  table.logs .log-papel.super{background:#ffd54f;color:#5d4037}
+  table.logs .log-papel.gestor{background:#a5d6a7;color:#1b5e20}
+  table.logs .log-papel.colaborador{background:#bbdefb;color:#0d47a1}
+  .log-filtros{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:center}
+  .log-filtros input,.log-filtros select{padding:7px 10px;border:1.5px solid #c4ccd2;border-radius:8px;font-size:13px}
   .user-chip{font-size:12px;font-weight:700;color:#fff;background:rgba(255,255,255,.18);padding:6px 11px;border-radius:14px;white-space:nowrap}
   .colab-mode .somente-gestor{display:none!important}
   body:not(.gestor-mode) .somente-gestor{display:none!important}
@@ -334,6 +350,7 @@
     <button class="tab somente-gestor" data-tab="colab">👥 Colaboradores</button>
     <button class="tab" data-tab="guia">📖 Guia / Legenda</button>
     <button class="tab somente-gestor" data-tab="config">⚙️ Configurações</button>
+    <button class="tab super-only" data-tab="logs">📜 Logs</button>
   </div>
   <div id="setorBadge" class="setor-badge" onclick="setTab('config')" title="Ir para Configurações">
     <span class="sb-icon" id="setorBadgeIcon">☢️</span>
@@ -507,6 +524,10 @@
   <!-- CONFIGURAÇÕES -->
   <section id="tab-config" style="display:none">
     <div id="configWrap"></div>
+  </section>
+
+  <section id="tab-logs" style="display:none">
+    <div id="logsWrap"></div>
   </section>
 
 </main>
@@ -942,7 +963,7 @@ function checkURLToken(){
   return false;
 }
 function defaultState(){
-  return {colaboradores:deepClone(COLAB_PADRAO), escala:deepClone(ESCALA_PADRAO), semanas:deepClone(SEMANAS_PADRAO), trocas:[], trocaCells:{}, gestores:deepClone(GESTORES_PADRAO), config:{antecedenciaDias:60, setor:{icone:'☢️',nome:'Raio-X',unidade:'Hospital Santa Catarina'}}, folgas:[], folgaCells:{}, remanejoCells:{}, feriados:deepClone(FERIADOS_PADRAO), ferias:[], superAdmin:{}, _pending:{}};
+  return {colaboradores:deepClone(COLAB_PADRAO), escala:deepClone(ESCALA_PADRAO), semanas:deepClone(SEMANAS_PADRAO), trocas:[], trocaCells:{}, gestores:deepClone(GESTORES_PADRAO), config:{antecedenciaDias:60, setor:{icone:'☢️',nome:'Raio-X',unidade:'Hospital Santa Catarina'}}, folgas:[], folgaCells:{}, remanejoCells:{}, feriados:deepClone(FERIADOS_PADRAO), ferias:[], superAdmin:{}, _pending:{}, logs:[]};
 }
 // migrações pontuais sobre estado salvo (idempotentes via flag)
 function migrar(s){
@@ -957,6 +978,7 @@ function migrar(s){
   if(!Array.isArray(s.trocas)) s.trocas=[];
   if(!s.trocaCells) s.trocaCells={};
   if(!s._pending) s._pending={};
+  if(!Array.isArray(s.logs)) s.logs=[];
   if(!Array.isArray(s.gestores)) s.gestores=deepClone(GESTORES_PADRAO);
   if(!s.config) s.config={antecedenciaDias:60};
   if(!s.config.setor) s.config.setor={icone:'☢️',nome:'Raio-X',unidade:'Hospital Santa Catarina'};
@@ -1148,6 +1170,7 @@ function confirmarEdicoesPending(){
   const n = temPending(wkId);
   if(!n){ mostrarToast('Sem alterações pendentes','#005E51'); return; }
   if(!confirm('Confirmar '+n+' alteração(ões) nesta semana?')) return;
+  registrarLog('escala.confirmar', n+' célula(s) na '+semanaLabel(wkId));
   if(state._pending) delete state._pending[wkId];
   save(); renderEscala();
   mostrarToast('✓ '+n+' alteração(ões) confirmada(s)','#008F79');
@@ -1164,6 +1187,7 @@ function descartarEdicoesPending(){
     const e = wk[cid]; if(!Array.isArray(e)) return;
     Object.keys(p[cid]).forEach(d=>{ e[+d] = p[cid][d]; });
   });
+  registrarLog('escala.descartar', n+' célula(s) revertida(s) na '+semanaLabel(wkId));
   delete state._pending[wkId];
   save(); renderEscala();
   mostrarToast('↺ '+n+' alteração(ões) descartada(s)','#7a4a00');
@@ -1448,12 +1472,14 @@ function addGestor(){
   let id=slug(nome); let n=1; while((state.gestores||[]).some(g=>g.id===id)){id=slug(nome)+(++n);}
   if(!state.gestores) state.gestores=[];
   state.gestores.push({id, nome:nome.toUpperCase(), nomeCompleto:nomeCompleto.toUpperCase(), telefone});
+  registrarLog('gestor.adicionar', nome.toUpperCase());
   save(); renderColab();
 }
 function delGestor(id){
   const g=(state.gestores||[]).find(x=>x.id===id); if(!g)return;
   if(!confirm('Remover o gestor "'+g.nome+'"?'))return;
   state.gestores=state.gestores.filter(x=>x.id!==id);
+  registrarLog('gestor.remover', g.nome);
   save(); renderColab();
 }
 function slug(s){return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'')||('c'+Math.floor(performance.now()));}
@@ -1468,6 +1494,7 @@ function addColab(){
   const fazCC=document.getElementById('newFazCC').checked;
   state.colaboradores.push({id,nome:nome.toUpperCase(),nomeCompleto:nomeCompleto.toUpperCase(),horario,periodo,fazCC,telefone});
   state.semanas.forEach(sw=>{ if(!state.escala[sw.id]) state.escala[sw.id]={}; state.escala[sw.id][id]=['','','','','','','']; });
+  registrarLog('colab.adicionar', nome.toUpperCase()+' ('+periodo+', '+horario+')');
   save(); renderColab(); renderMeSelect();
 }
 let _editColabId=null;
@@ -1528,6 +1555,7 @@ function delColab(id){
   if(!confirm('Remover "'+c.nome+'" e seus plantões?'))return;
   state.colaboradores=state.colaboradores.filter(x=>x.id!==id);
   state.semanas.forEach(sw=>{ if(state.escala[sw.id]) delete state.escala[sw.id][id]; });
+  registrarLog('colab.remover', c.nome);
   save(); renderColab(); renderMeSelect(); renderEscala();
 }
 
@@ -1535,14 +1563,16 @@ function delColab(id){
 function setTab(name){
   if(name==='colab' && ehColab()) name='minha';   // colaborador não acessa cadastro
   if(name==='config' && !ehGestor()) name='escala'; // config só para gestores
+  if(name==='logs' && !ehSuper()) name='escala';   // logs apenas master
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
-  ['escala','minha','colab','troca','guia','config'].forEach(n=>{
-    document.getElementById('tab-'+n).style.display = n===name?'':'none';
+  ['escala','minha','colab','troca','guia','config','logs'].forEach(n=>{
+    const el=document.getElementById('tab-'+n); if(el) el.style.display = n===name?'':'none';
   });
   if(name==='minha') renderMinha();
   if(name==='colab') renderColab();
   if(name==='troca') renderTrocas();
   if(name==='config') renderConfig();
+  if(name==='logs') renderLogs();
   if(typeof checkOrientation==='function') checkOrientation();
 }
 function setEditing(v){
@@ -1592,15 +1622,18 @@ function addWeek(copyAtual){
   }
   state.semanas.push({id, startISO:iso});
   curWeek = state.semanas.length-1;
+  registrarLog('semana.adicionar', 'Início '+formatarDataBR(iso));
   save(); fillWeekSel(); renderEscala();
 }
 function removeWeek(){
   if(state.semanas.length<=1){ alert('Deve existir pelo menos uma semana.'); return; }
   const sw = state.semanas[curWeek];
   if(!confirm('Remover a "'+weekInfo(sw).label+'"? Os plantões dessa semana serão apagados.')) return;
+  const label=weekInfo(sw).label;
   delete state.escala[sw.id];
   state.semanas.splice(curWeek,1);
   if(curWeek>=state.semanas.length) curWeek=state.semanas.length-1;
+  registrarLog('semana.remover', label);
   save(); fillWeekSel(); renderEscala();
 }
 document.getElementById('btnNewWeek').addEventListener('click',()=>addWeek(false));
@@ -1625,6 +1658,7 @@ document.getElementById('genOk').addEventListener('click',()=>{
   const u=document.getElementById('genUni').value;
   const n=semanasParaGerar(q,u);
   fecharGen();
+  registrarLog('escala.gerar_auto', n+' semana(s) ('+q+' '+u+')');
   gerarVarias(n);
 });
 document.getElementById('genQtd').addEventListener('input',atualizaGenInfo);
@@ -2215,9 +2249,10 @@ function autorizarTroca(id){
     state.trocaCells[wk+'|'+t.deId+'|'+t.diaB]=t.id;
   }
   t.status='autorizada'; t.lidaGestor=true;
+  registrarLog('troca.autorizar', nomeColab(t.deId)+' ↔ '+nomeColab(t.paraId)+' ('+DIAS_CURTO[t.diaA]+' ↔ '+DIAS_CURTO[t.diaB]+') · '+semanaLabel(wk));
   save(); renderTrocas(); renderEscala(); refreshInbox();
 }
-function recusarGestor(id){ const t=state.trocas.find(x=>x.id===id); if(!t)return; t.status='recusada_gestor'; t.lidaGestor=true; save(); renderTrocas(); refreshInbox(); }
+function recusarGestor(id){ const t=state.trocas.find(x=>x.id===id); if(!t)return; t.status='recusada_gestor'; t.lidaGestor=true; registrarLog('troca.recusar', nomeColab(t.deId)+' ↔ '+nomeColab(t.paraId)); save(); renderTrocas(); refreshInbox(); }
 function cancelarTrocaAutorizada(id){
   const t=state.trocas.find(x=>x.id===id); if(!t || t.status!=='autorizada') return;
   if(!confirm('Cancelar a troca autorizada e restaurar a escala original?\n\n'+nomeColab(t.deId)+' volta a '+DIAS_CURTO[t.diaA]+'\n'+nomeColab(t.paraId)+' volta a '+DIAS_CURTO[t.diaB])) return;
@@ -2233,6 +2268,7 @@ function cancelarTrocaAutorizada(id){
     delete state.trocaCells[wk+'|'+t.deId+'|'+t.diaB];
   }
   t.status='cancelada'; t.lidaGestor=true;
+  registrarLog('troca.cancelar', nomeColab(t.deId)+' ↔ '+nomeColab(t.paraId)+' (escala restaurada)');
   save(); renderTrocas(); renderEscala(); refreshInbox();
 }
 // ---- render ----
@@ -2443,9 +2479,10 @@ function aprovarFolga(id){
   const f=(state.folgas||[]).find(x=>x.id===id); if(!f)return;
   f.status='aprovada'; f.lidaGestor=true; f.aprovadoPor=(typeof sessao!=='undefined'&&sessao.nome)||'Gestor';
   aplicarFolgaNaEscala(f);   // se a semana já existe, aplica agora; senão, será respeitada ao gerar
+  registrarLog('folga.aprovar', nomeColab(f.colabId)+' em '+formatarDataBR(f.dataISO));
   save(); renderTrocas(); renderEscala(); refreshInbox();
 }
-function recusarFolga(id){ const f=(state.folgas||[]).find(x=>x.id===id); if(!f)return; f.status='recusada'; f.lidaGestor=true; save(); renderTrocas(); refreshInbox(); }
+function recusarFolga(id){ const f=(state.folgas||[]).find(x=>x.id===id); if(!f)return; f.status='recusada'; f.lidaGestor=true; registrarLog('folga.recusar', nomeColab(f.colabId)+' em '+formatarDataBR(f.dataISO)); save(); renderTrocas(); refreshInbox(); }
 document.getElementById('folCancel').addEventListener('click',fecharFolga);
 document.getElementById('folOk').addEventListener('click',enviarFolga);
 document.getElementById('folData').addEventListener('change',atualizaFolInfo);
@@ -2462,14 +2499,16 @@ function precisaLogin(){ return !ehColab() && !ehGestor() && !ehSuper(); }
 function aplicarPapel(){
   const colab=ehColab();
   const gestor=ehGestor();
+  const sup=ehSuper();
   document.body.classList.toggle('colab-mode', colab);
   document.body.classList.toggle('gestor-mode', gestor);
+  document.body.classList.toggle('super-mode', sup);
   if(!gestor && editing) setEditing(false);
   if(colab && editing) setEditing(false);
   const chip=document.getElementById('userChip');
   if(chip){
     if(colab) chip.textContent='👤 '+nomeColab(sessao.colabId);
-    else if(ehSuper()) chip.textContent='🛡️ Gestão';
+    else if(sup) chip.textContent='👑 Master';
     else if(gestor) chip.textContent='🛡️ '+(sessao.nome||'Gestor');
     else chip.textContent='';
   }
@@ -2565,10 +2604,12 @@ function tentarLoginGate(){
   }
   salvarSessao(); fecharLoginGate(); aplicarPapel();
   const primeiroNome=(isGestor?((state.gestores||[]).find(x=>x.id===uid)||{}).nome:nomeColab(uid)||'').split(' ')[0];
+  registrarLog('login', isGestor?'Gestor entrou':'Colaborador entrou'); save();
   mostrarToast('👋 Bem-vindo(a), '+primeiroNome+'!','#005E51');
   setTab(isGestor?'escala':'minha');
 }
 function logout(){
+  registrarLog('logout',''); save();
   if(editing) setEditing(false);
   sessao={papel:'visitante'}; salvarSessao(); aplicarPapel();
   abrirLoginGate();
@@ -2591,6 +2632,105 @@ function alterarSenhaGestor(gid){
 }
 // manter compatibilidade com chamadas antigas
 function alterarPinGestor(gid){ alterarSenhaGestor(gid); }
+/* ============== LOGS / AUDITORIA ============== */
+const LOG_MAX = 500;
+function _quemSou(){
+  if(ehSuper()) return {id:'master', nome:sessao.nome||'Master', papel:'super'};
+  if(sessao.papel==='gestor'){
+    const g=(state.gestores||[]).find(x=>x.id===sessao.gestorId);
+    return {id:sessao.gestorId||'?', nome:(g&&g.nome)||sessao.nome||'Gestor', papel:'gestor'};
+  }
+  if(sessao.papel==='colaborador'){
+    return {id:sessao.colabId||'?', nome:nomeColab(sessao.colabId)||'?', papel:'colaborador'};
+  }
+  return {id:'visitante', nome:'Visitante', papel:'visitante'};
+}
+function registrarLog(acao, detalhe){
+  if(!state.logs) state.logs=[];
+  const q=_quemSou();
+  state.logs.push({ts:Date.now(), whoId:q.id, who:q.nome, papel:q.papel, acao, detalhe:detalhe||''});
+  if(state.logs.length>LOG_MAX) state.logs.splice(0, state.logs.length-LOG_MAX);
+  // save() é chamado pelos callers
+}
+function fmtLogTs(ts){
+  const d=new Date(ts);
+  const dd=String(d.getDate()).padStart(2,'0'), mm=String(d.getMonth()+1).padStart(2,'0');
+  const hh=String(d.getHours()).padStart(2,'0'), mi=String(d.getMinutes()).padStart(2,'0'), ss=String(d.getSeconds()).padStart(2,'0');
+  return dd+'/'+mm+' '+hh+':'+mi+':'+ss;
+}
+let _logFiltro={txt:'',papel:''};
+function renderLogs(){
+  const wrap=document.getElementById('logsWrap'); if(!wrap) return;
+  const logs=(state.logs||[]).slice().reverse();
+  const filtrados=logs.filter(l=>{
+    if(_logFiltro.papel && l.papel!==_logFiltro.papel) return false;
+    if(_logFiltro.txt){
+      const t=_logFiltro.txt.toLowerCase();
+      const blob=((l.who||'')+' '+(l.acao||'')+' '+(l.detalhe||'')).toLowerCase();
+      if(!blob.includes(t)) return false;
+    }
+    return true;
+  });
+  let h='<div class="card" style="padding:20px 24px">';
+  h+='<h2 style="margin:0 0 4px;font-size:18px;color:var(--verde-d)">📜 Logs do sistema</h2>';
+  h+='<p style="margin:0 0 16px;font-size:13px;color:#7a8893">Auditoria das ações realizadas no sistema (últimas '+LOG_MAX+' entradas).</p>';
+  h+='<div class="log-filtros">';
+  h+='<input type="text" id="logBusca" placeholder="🔎 Buscar (nome, ação, detalhe)" value="'+_logFiltro.txt.replace(/"/g,'&quot;')+'" style="flex:1;min-width:220px">';
+  h+='<select id="logPapel"><option value="">Todos os papéis</option>'
+    +'<option value="super"'+(_logFiltro.papel==='super'?' selected':'')+'>Master</option>'
+    +'<option value="gestor"'+(_logFiltro.papel==='gestor'?' selected':'')+'>Gestores</option>'
+    +'<option value="colaborador"'+(_logFiltro.papel==='colaborador'?' selected':'')+'>Colaboradores</option>'
+    +'</select>';
+  h+='<button class="btn" onclick="exportarLogsCSV()">📥 Exportar CSV</button>';
+  h+='<button class="btn no" onclick="limparLogs()" title="Apaga todos os logs (não pode ser desfeito)">🗑️ Limpar</button>';
+  h+='<span style="font-size:12px;color:#5c6b75">'+filtrados.length+' / '+logs.length+' entrada(s)</span>';
+  h+='</div>';
+  if(!filtrados.length){
+    h+='<div style="padding:30px;text-align:center;color:#7a8893;font-size:14px">Nenhum log encontrado.</div>';
+  } else {
+    h+='<div style="max-height:65vh;overflow:auto;border:1px solid #e3e8eb;border-radius:8px">';
+    h+='<table class="logs"><thead><tr><th>Quando</th><th>Quem</th><th>Papel</th><th>Ação</th><th>Detalhe</th></tr></thead><tbody>';
+    filtrados.slice(0,300).forEach(l=>{
+      h+='<tr>'
+        +'<td class="log-ts">'+fmtLogTs(l.ts)+'</td>'
+        +'<td class="log-who">'+(l.who||'?')+'</td>'
+        +'<td><span class="log-papel '+l.papel+'">'+l.papel+'</span></td>'
+        +'<td class="log-acao">'+(l.acao||'')+'</td>'
+        +'<td>'+(l.detalhe||'')+'</td>'
+        +'</tr>';
+    });
+    h+='</tbody></table></div>';
+    if(filtrados.length>300) h+='<div style="font-size:11px;color:#7a8893;margin-top:6px">Exibindo as 300 mais recentes — refine a busca para ver outras.</div>';
+  }
+  h+='</div>';
+  wrap.innerHTML=h;
+  const b=document.getElementById('logBusca'); if(b) b.addEventListener('input',()=>{ _logFiltro.txt=b.value; renderLogs(); });
+  const p=document.getElementById('logPapel'); if(p) p.addEventListener('change',()=>{ _logFiltro.papel=p.value; renderLogs(); });
+}
+function exportarLogsCSV(){
+  const logs=(state.logs||[]).slice().reverse();
+  const linhas=[['Data/Hora','Quem','Papel','Ação','Detalhe']];
+  logs.forEach(l=>{
+    linhas.push([
+      new Date(l.ts).toLocaleString('pt-BR'),
+      (l.who||'').replace(/"/g,'""'),
+      l.papel||'',
+      (l.acao||'').replace(/"/g,'""'),
+      (l.detalhe||'').replace(/"/g,'""')
+    ]);
+  });
+  const csv='﻿'+linhas.map(r=>r.map(c=>'"'+c+'"').join(';')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='logs_escala_'+new Date().toISOString().split('T')[0]+'.csv'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+function limparLogs(){
+  if(!confirm('Apagar TODOS os logs? Esta ação não pode ser desfeita.')) return;
+  registrarLog('logs.limpar','('+((state.logs||[]).length)+' entradas removidas)');
+  state.logs=state.logs.slice(-1); // mantém só o registro do "limpar"
+  save(); renderLogs();
+}
 /* ============== SUPER ADMIN (oculto) ============== */
 (function(){
   let _clicks=0, _timer=null;
@@ -2627,6 +2767,7 @@ document.getElementById('superOk').addEventListener('click',()=>{
   }
   sessao={papel:'super',nome:'Admin'};
   salvarSessao(); fecharSuperModal(); fecharLoginGate(); aplicarPapel();
+  registrarLog('login.master','Master entrou no sistema'); save();
   setTab('escala');
 });
 /* ============== FIM SUPER ADMIN ============== */
