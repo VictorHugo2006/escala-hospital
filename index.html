@@ -2545,6 +2545,7 @@ function fillGateUsers(){
     (state.gestores||[]).forEach(g=>{ html+='<option value="g:'+g.id+'">'+g.nome+' 🛡️</option>'; });
     html+='</optgroup>';
   }
+  html+='<optgroup label="── Administração ──"><option value="m:master">👑 Master</option></optgroup>';
   sel.innerHTML=html;
 }
 function gateOnUserChange(){
@@ -2554,16 +2555,31 @@ function gateOnUserChange(){
   const s2w=document.getElementById('gateSenha2Wrap');
   const pa=document.getElementById('gatePrimeiroAcesso');
   if(!val){ sw.style.display='none'; s2w.style.display='none'; pa.style.display='none'; return; }
+  const isMaster=val.startsWith('m:');
   const uid=val.slice(2);
-  const senhaSalva=_getSenhaUsuario(uid);
   sw.style.display='';
   document.getElementById('gateSenha').value='';
   setTimeout(()=>document.getElementById('gateSenha').focus(),80);
+  if(isMaster){
+    const pinSalvo=state.superAdmin&&state.superAdmin.pin;
+    if(!pinSalvo){
+      document.getElementById('gateSenhaLabel').textContent='Crie o PIN do Master';
+      document.getElementById('gateSenha').placeholder='Mínimo 4 dígitos';
+      s2w.style.display=''; document.getElementById('gateSenha2').value='';
+      pa.style.display=''; pa.textContent='👑 Primeiro acesso do Master. Defina um PIN — ele será pedido nas próximas vezes.';
+    } else {
+      document.getElementById('gateSenhaLabel').textContent='PIN do Master';
+      document.getElementById('gateSenha').placeholder='••••••';
+      s2w.style.display='none'; pa.style.display='none';
+    }
+    return;
+  }
+  const senhaSalva=_getSenhaUsuario(uid);
   if(!senhaSalva){
     document.getElementById('gateSenhaLabel').textContent='Crie sua senha';
     document.getElementById('gateSenha').placeholder='Mínimo 4 caracteres';
     s2w.style.display=''; document.getElementById('gateSenha2').value='';
-    pa.style.display='';
+    pa.style.display=''; pa.textContent='👋 Primeiro acesso! Crie sua senha — ela será pedida nas próximas vezes.';
   } else {
     document.getElementById('gateSenhaLabel').textContent='Senha';
     document.getElementById('gateSenha').placeholder='••••••';
@@ -2584,10 +2600,28 @@ function mostrarErroGate(msg){ const e=document.getElementById('gateErro'); e.te
 function tentarLoginGate(){
   const val=document.getElementById('gateUser').value;
   if(!val){ mostrarErroGate('Selecione seu nome.'); return; }
-  const uid=val.slice(2);
+  const isMaster=val.startsWith('m:');
   const isGestor=val.startsWith('g:');
+  const uid=val.slice(2);
   const senha=document.getElementById('gateSenha').value;
-  if(!senha||senha.length<4){ mostrarErroGate('A senha deve ter ao menos 4 caracteres.'); return; }
+  if(!senha||senha.length<4){ mostrarErroGate(isMaster?'O PIN deve ter ao menos 4 dígitos.':'A senha deve ter ao menos 4 caracteres.'); return; }
+  if(isMaster){
+    if(!state.superAdmin) state.superAdmin={};
+    const pinSalvo=state.superAdmin.pin;
+    if(!pinSalvo){
+      const conf=document.getElementById('gateSenha2').value;
+      if(senha!==conf){ mostrarErroGate('Os PINs não coincidem. Tente novamente.'); document.getElementById('gateSenha2').value=''; document.getElementById('gateSenha2').focus(); return; }
+      state.superAdmin.pin=senha; save();
+    } else {
+      if(senha!==pinSalvo){ mostrarErroGate('PIN incorreto.'); document.getElementById('gateSenha').value=''; document.getElementById('gateSenha').focus(); return; }
+    }
+    sessao={papel:'super',nome:'Admin'};
+    salvarSessao(); fecharLoginGate(); aplicarPapel();
+    registrarLog('login.master','Master entrou no sistema'); save();
+    mostrarToast('👑 Bem-vindo, Master!','#bf360c');
+    setTab('escala');
+    return;
+  }
   const senhaSalva=_getSenhaUsuario(uid);
   if(!senhaSalva){
     const conf=document.getElementById('gateSenha2').value;
