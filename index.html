@@ -1353,12 +1353,25 @@ function renderColab(){
       '<div class="fld"><label>Telefone / WhatsApp</label><input type="tel" id="newGestorTelefone" placeholder="ex.: 47 99999-9999"></div>'+
       '<button class="btn primary" id="btnAddGestor">+ Adicionar gestor</button></div>';
   }
-  html+='<table class="colab"><thead><tr><th>Nome Completo</th><th>Apelido</th><th>Telefone</th><th>PIN</th>'+(editing?'<th style="width:160px">Ações</th>':'')+'</tr></thead><tbody>';
+  const masterId = (state.superAdmin && state.superAdmin.linkedUserId) || '';
+  // Regra: só o próprio master atual pode trocar. Se ainda não há nenhum, qualquer gestor em modo edição pode definir (primeiro acesso).
+  const podeMexerMaster = editing && (ehSuper() || !masterId);
+  html+='<table class="colab"><thead><tr><th>Nome Completo</th><th>Apelido</th><th>Telefone</th><th>PIN</th><th>Master</th>'+(editing?'<th style="width:160px">Ações</th>':'')+'</tr></thead><tbody>';
   (state.gestores||[]).forEach(g=>{
     const pinStatus=g.pin?'<span class="pill" style="background:#e8f5e9;color:#2e7d32;font-size:11px">✅ Definido</span>':'<span class="pill" style="background:#fff3e0;color:#e65100;font-size:11px">⚠️ Não definido</span>';
     const gNomeCompletoCell = g.nomeCompleto ? g.nomeCompleto : '<span style="color:#aaa">—</span>';
     const gTelefoneCell = g.telefone ? '<a href="https://wa.me/55'+g.telefone.replace(/\D/g,'')+'" target="_blank" style="color:#005E51;text-decoration:none" title="Abrir WhatsApp">📱 '+g.telefone+'</a>' : '<span style="color:#aaa">—</span>';
-    html+='<tr data-gid="'+g.id+'"><td style="font-size:12px">'+gNomeCompletoCell+'</td><td><b>'+g.nome+'</b></td><td style="font-size:12px;white-space:nowrap">'+gTelefoneCell+'</td><td>'+pinStatus+'</td>';
+    const ehMaster = masterId === g.id;
+    let masterCell;
+    if(ehMaster){
+      masterCell = '<span class="pill" style="background:#ffd54f;color:#5d4037;font-weight:800;font-size:11px">👑 Master</span>';
+      if(podeMexerMaster) masterCell += ' <button class="btn mini no" data-gact="unmaster" title="Revogar Master" style="font-size:10px;padding:2px 6px;margin-left:4px">Revogar</button>';
+    } else if(podeMexerMaster){
+      masterCell = '<button class="btn mini" data-gact="master" title="Definir este gestor como Master" style="font-size:11px;padding:3px 8px;background:#fff8e1;border-color:#ffd54f;color:#5d4037">👑 Tornar Master</button>';
+    } else {
+      masterCell = '<span style="color:#aaa">—</span>';
+    }
+    html+='<tr data-gid="'+g.id+'"><td style="font-size:12px">'+gNomeCompletoCell+'</td><td><b>'+g.nome+'</b>'+(ehMaster?' 👑':'')+'</td><td style="font-size:12px;white-space:nowrap">'+gTelefoneCell+'</td><td>'+pinStatus+'</td><td>'+masterCell+'</td>';
     if(editing) html+='<td><div style="display:flex;gap:4px"><button class="iconbtn" data-gact="edit" title="Editar">✏️</button><button class="btn mini" data-gact="pin" title="Alterar PIN" style="font-size:11px;padding:3px 7px;background:#e3f2fd;border-color:#90cae8;color:#1565c0">🔐 PIN</button><button class="iconbtn" data-gact="del" title="Remover">🗑️</button></div></td>';
     html+='</tr>';
   });
@@ -1440,6 +1453,8 @@ function renderColab(){
         const gid=b.closest('tr').dataset.gid;
         if(b.dataset.gact==='pin') alterarPinGestor(gid);
         else if(b.dataset.gact==='edit') editGestor(gid);
+        else if(b.dataset.gact==='master') tornarMaster(gid);
+        else if(b.dataset.gact==='unmaster') removerMaster(gid);
         else delGestor(gid);
       });
     });
@@ -2630,6 +2645,18 @@ function tentarLoginGate(){
   } else {
     if(senha!==senhaSalva){ mostrarErroGate('Senha incorreta. Tente novamente.'); document.getElementById('gateSenha').value=''; document.getElementById('gateSenha').focus(); return; }
   }
+  const masterId=(state.superAdmin&&state.superAdmin.linkedUserId)||'';
+  const ehMasterVinculado = masterId===uid;
+  if(ehMasterVinculado){
+    const g=(state.gestores||[]).find(x=>x.id===uid);
+    const nome=g?g.nome:(nomeColab(uid)||'Master');
+    sessao={papel:'super',nome:nome};
+    salvarSessao(); fecharLoginGate(); aplicarPapel();
+    registrarLog('login.master','Master entrou ('+nome+')'); save();
+    mostrarToast('👑 Bem-vindo(a), Master '+nome.split(' ')[0]+'!','#bf360c');
+    setTab('escala');
+    return;
+  }
   if(isGestor){
     const g=(state.gestores||[]).find(x=>x.id===uid);
     sessao={papel:'gestor',gestorId:uid,nome:g?g.nome:'Gestor'};
@@ -2666,6 +2693,33 @@ function alterarSenhaGestor(gid){
 }
 // manter compatibilidade com chamadas antigas
 function alterarPinGestor(gid){ alterarSenhaGestor(gid); }
+function tornarMaster(gid){
+  const g=(state.gestores||[]).find(x=>x.id===gid); if(!g)return;
+  if(!state.superAdmin) state.superAdmin={};
+  const atual=state.superAdmin.linkedUserId;
+  if(atual && atual!==gid && !ehSuper()){ alert('Apenas o Master atual pode trocar o vínculo.'); return; }
+  if(!confirm('Definir "'+g.nome+'" como Master?\n\nA partir do próximo login, esse usuário entrará automaticamente como Master, com acesso à aba Logs e a todas as ações administrativas.')) return;
+  state.superAdmin.linkedUserId=gid;
+  registrarLog('master.vincular', g.nome+' definido como Master');
+  save(); renderColab();
+  // Se quem fez isso já está logado COMO esse gestor, promove a sessão na hora
+  if(sessao.papel==='gestor' && sessao.gestorId===gid){
+    sessao={papel:'super',nome:g.nome};
+    salvarSessao(); aplicarPapel();
+    mostrarToast('👑 Você agora é Master!','#bf360c');
+  } else {
+    mostrarToast('👑 '+g.nome+' é o novo Master','#bf360c');
+  }
+}
+function removerMaster(gid){
+  const g=(state.gestores||[]).find(x=>x.id===gid); if(!g)return;
+  if(!ehSuper()){ alert('Apenas o Master pode revogar o vínculo.'); return; }
+  if(!confirm('Revogar o vínculo Master de "'+g.nome+'"?\n\nO acesso master via login direto será desativado. O PIN secreto (5 cliques no título) continua funcionando.')) return;
+  if(state.superAdmin) state.superAdmin.linkedUserId='';
+  registrarLog('master.desvincular', g.nome+' não é mais Master');
+  save(); renderColab();
+  mostrarToast('Vínculo revogado.','#7a4a00');
+}
 /* ============== LOGS / AUDITORIA ============== */
 const LOG_MAX = 500;
 function _quemSou(){
