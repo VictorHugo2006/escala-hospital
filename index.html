@@ -2846,11 +2846,24 @@ function limparLogs(){
 /* ============== SUPER ADMIN (oculto) ============== */
 (function(){
   let _clicks=0, _timer=null;
-  document.getElementById('appTitle').addEventListener('click',()=>{
+  function _onClickSecreto(){
     _clicks++;
     clearTimeout(_timer);
     _timer=setTimeout(()=>{ _clicks=0; },1800);
     if(_clicks>=5){ _clicks=0; abrirSuperModal(); }
+  }
+  // Atalho no header (após login) E no logo do gate de login (antes do login)
+  const elTitulo=document.getElementById('appTitle');
+  if(elTitulo) elTitulo.addEventListener('click', _onClickSecreto);
+  const elLgSub=document.getElementById('lgSetorSub');
+  if(elLgSub){
+    elLgSub.style.cursor='pointer';
+    elLgSub.addEventListener('click', _onClickSecreto);
+  }
+  // Logo SVG dentro do gate (2 S grande)
+  document.querySelectorAll('#loginGate svg').forEach(svg=>{
+    svg.style.cursor='pointer';
+    svg.addEventListener('click', _onClickSecreto);
   });
 })();
 function abrirSuperModal(){
